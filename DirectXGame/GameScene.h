@@ -14,6 +14,7 @@ struct PipeInstanceData {
 	DirectX::XMFLOAT4X4 worldMatrix; // 描画位置・回転角度
 	int isPowered;                   // 1: 通電（発光）, 0: 消灯
 	int mask;                        // パイプの形状
+	int isGoal;                      // ★ 追加: 1: ゴールマス, 0: 通常マス
 	float padding[2];
 };
 
@@ -22,21 +23,21 @@ struct PipeInstanceData {
 // ----------------------------------------------------
 class GameScene {
 private:
-	// 盤面データ（6x5 グリッド）
+	// 盤面データ（10x10 グリッド）
 	Board m_board;
 
 	// スタートとゴールの座標
 	int m_startX = 0;
-	int m_startY = 2;
-	int m_goalX = 5;
-	int m_goalY = 2;
+	int m_startY = 0;
+	int m_goalX = 9;
+	int m_goalY = 9;
 
 	// ゲームクリア状態
 	bool m_isCleared = false;
 
-	// 描画設定（マスのサイズやオフセット）
-	DirectX::XMFLOAT2 m_boardOffset = DirectX::XMFLOAT2(-0.5f, 0.4f);
-	float m_tileSize = 0.2f;                        // タイルのサイズと間隔
+	// 描画設定（全画面10x10用）
+	float m_tileSize = 0.2f;
+	DirectX::XMFLOAT2 m_boardOffset = DirectX::XMFLOAT2(-0.9f, 0.9f);
 
 	// インスタンシング描画用データ
 	std::vector<PipeInstanceData> m_instanceData;
@@ -69,4 +70,5 @@ public:
 private:
 	void RefreshCircuit();
 	void UpdateInstanceBuffers();
+	void GenerateStage(); // 全マスを通る唯一の正解ルート生成
 };

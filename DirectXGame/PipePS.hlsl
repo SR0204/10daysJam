@@ -1,57 +1,75 @@
-struct PSInput
+struct VSOutput
 {
     float4 pos : SV_POSITION;
-    float2 uv : TEXCOORD;
-    nointerpolation int isPowered : POWERED;
+    float2 uv : TEXCOORD0;
+    nointerpolation int isPowered : TEXCOORD1;
     nointerpolation int mask : MASK;
+    nointerpolation int isGoal : IS_GOAL;
 };
 
-float4 main(PSInput input) : SV_TARGET
+static const int DIR_UP = 1;
+static const int DIR_RIGHT = 2;
+static const int DIR_DOWN = 4;
+static const int DIR_LEFT = 8;
+
+float4 main(VSOutput input) : SV_TARGET
 {
-    float2 p = input.uv - 0.5f;
+    float2 p = input.uv - float2(0.5f, 0.5f);
+    float width = 0.15f; // パイプの太さ
 
-    // 通電: 水色, 非通電: グレー
-    float3 activeColor = (input.isPowered != 0) ? float3(0.0f, 0.8f, 1.0f) : float3(0.5f, 0.5f, 0.5f);
-    float3 bgColor = float3(0.2f, 0.2f, 0.25f);
+    bool draw = false;
 
-    float pipeWidth = 0.12f;
-    bool isPipe = false;
-
-    // 中央結合部
-    if (input.mask != 0)
+    // 中央交差点
+    if (abs(p.x) <= width && abs(p.y) <= width)
     {
-        if (abs(p.x) < pipeWidth && abs(p.y) < pipeWidth)
+        draw = true;
+    }
+    // 上方向
+    if ((input.mask & DIR_UP) && p.y < -width && abs(p.x) <= width)
+    {
+        draw = true;
+    }
+    // 右方向
+    if ((input.mask & DIR_RIGHT) && p.x > width && abs(p.y) <= width)
+    {
+        draw = true;
+    }
+    // 下方向
+    if ((input.mask & DIR_DOWN) && p.y > width && abs(p.x) <= width)
+    {
+        draw = true;
+    }
+    // 左方向
+    if ((input.mask & DIR_LEFT) && p.x < -width && abs(p.y) <= width)
+    {
+        draw = true;
+    }
+
+    if (!draw)
+    {
+        discard;
+    }
+
+    // ★ 色の設定
+    float4 color = float4(0.3f, 0.3f, 0.3f, 1.0f); // 未通電（暗いグレー）
+
+    if (input.isGoal == 1)
+    {
+        // ゴール地点の色（通電前：黄色 / 通電時：赤ピンク）
+        if (input.isPowered == 1)
         {
-            isPipe = true;
+            color = float4(1.0f, 0.1f, 0.4f, 1.0f);
+        }
+        else
+        {
+            color = float4(1.0f, 0.8f, 0.0f, 1.0f);
         }
     }
-
-    int m = input.mask;
-
-    // ★ Board.h の Enum 定義（UP=1, RIGHT=2, DOWN=4, LEFT=8）に完全一致させる
-    // 1 (UP)    : 上方向 (p.y <= 0)
-    if ((m & 1) != 0 && abs(p.x) < pipeWidth && p.y <= 0.0f)
-        isPipe = true;
-
-    // 2 (RIGHT) : 右方向 (p.x >= 0)
-    if ((m & 2) != 0 && abs(p.y) < pipeWidth && p.x >= 0.0f)
-        isPipe = true;
-
-    // 4 (DOWN)  : 下方向 (p.y >= 0)
-    if ((m & 4) != 0 && abs(p.x) < pipeWidth && p.y >= 0.0f)
-        isPipe = true;
-
-    // 8 (LEFT)  : 左方向 (p.x <= 0)
-    if ((m & 8) != 0 && abs(p.y) < pipeWidth && p.x <= 0.0f)
-        isPipe = true;
-
-    float3 finalColor = isPipe ? activeColor : bgColor;
-
-    // 外枠
-    if (abs(p.x) > 0.48f || abs(p.y) > 0.48f)
+    else if (input.isPowered == 1)
     {
-        finalColor = float3(0.1f, 0.1f, 0.12f);
+        // 通常マスの通電色（水色）
+        color = float4(0.0f, 0.9f, 1.0f, 1.0f);
     }
 
-    return float4(finalColor, 1.0f);
+    return color;
 }

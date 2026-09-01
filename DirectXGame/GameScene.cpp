@@ -1,9 +1,13 @@
 #include "GameScene.h"
 #include "CircuitSolver.h"
+#include <algorithm>
 #include <cassert>
 #include <d3d12.h>
 #include <d3dcompiler.h>
 #include <d3dx12.h>
+#include <random>
+#include <stack>
+
 #pragma comment(lib, "d3dcompiler.lib")
 
 using namespace DirectX;
@@ -15,33 +19,136 @@ struct Vertex {
 	XMFLOAT2 uv;
 };
 
-GameScene::GameScene() : m_board(6, 5), m_startX(0), m_startY(2), m_goalX(5), m_goalY(2) {}
+// 画面全体を埋める 10x10 グリッドで初期化
+// 左上 (0,0) をスタート、右下 (9,9) をゴールに指定
+GameScene::GameScene() : m_board(10, 10), m_startX(0), m_startY(0), m_goalX(9), m_goalY(9) {}
+
+// ----------------------------------------------------
+// 全マスを巡回する唯一の正解ルート（迷路）を生成
+// ----------------------------------------------------
+void GameScene::GenerateStage() {
+	int width = m_board.GetWidth();
+	int height = m_board.GetHeight();
+
+	std::vector<std::vector<bool>> visited(height, std::vector<bool>(width, false));
+
+	struct Point {
+		int x, y;
+	};
+	std::stack<Point> pathStack;
+
+	std::random_device rd;
+	std::mt19937 g(rd());
+
+	bool success = false;
+
+	// 全マス(100マス)を通るまでリトライして生成
+	while (!success) {
+		m_board.Clear();
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+				visited[y][x] = false;
+			}
+		}
+		while (!pathStack.empty()) {
+			pathStack.pop();
+		}
+
+		int currentX = m_startX;
+		int currentY = m_startY;
+		visited[currentY][currentX] = true;
+		pathStack.push({currentX, currentY});
+
+		while (!pathStack.empty()) {
+			Point p = pathStack.top();
+
+			struct Neighbor {
+				int x, y;
+				Dir dir;
+				Dir oppositeDir;
+			};
+			std::vector<Neighbor> neighbors;
+
+			if (p.y > 0 && !visited[p.y - 1][p.x])
+				neighbors.push_back({p.x, p.y - 1, UP, DOWN});
+			if (p.x < width - 1 && !visited[p.y][p.x + 1])
+				neighbors.push_back({p.x + 1, p.y, RIGHT, LEFT});
+			if (p.y < height - 1 && !visited[p.y + 1][p.x])
+				neighbors.push_back({p.x, p.y + 1, DOWN, UP});
+			if (p.x > 0 && !visited[p.y][p.x - 1])
+				neighbors.push_back({p.x - 1, p.y, LEFT, RIGHT});
+
+			if (!neighbors.empty()) {
+				std::shuffle(neighbors.begin(), neighbors.end(), g);
+				Neighbor next = neighbors[0];
+
+				m_board.GetTile(p.x, p.y).mask |= next.dir;
+				m_board.GetTile(next.x, next.y).mask |= next.oppositeDir;
+
+				visited[next.y][next.x] = true;
+				pathStack.push({next.x, next.y});
+			} else {
+				pathStack.pop();
+			}
+		}
+
+		// ★ 1. スタート地点 (0,0) を十字（全方位）パイプに変更
+		// ※ DFSで生成された元々の向きを残しつつ、全方位（UP|RIGHT|DOWN|LEFT）を設定する
+		m_board.GetTile(m_startX, m_startY).mask = UP | RIGHT | DOWN | LEFT;
+
+		// ★ 2. ゴール地点 (9,9) の回転を固定（ロック）
+		m_board.GetTile(m_goalX, m_goalY).isLocked = true;
+
+		// 全マスを通過できたか判定
+		int visitedCount = 0;
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+				if (visited[y][x])
+					visitedCount++;
+			}
+		}
+
+		if (visitedCount == width * height && m_board.GetTile(m_goalX, m_goalY).mask != NONE) {
+			success = true;
+		}
+	}
+
+	// スタート位置 (0,0) を画面左端枠外に接続
+	m_board.GetTile(m_startX, m_startY).mask |= LEFT;
+}
 
 void GameScene::Initialize() {
-	m_board.Clear();
+	// 1. 全マス通過の正解ルートを生成
+	GenerateStage();
 
-	// 画面の見た目通りのパイプ配置
-	m_board.GetTile(0, 2).mask = LEFT | RIGHT; // (0,2): 横直線
-	m_board.GetTile(1, 2).mask = LEFT | DOWN;  // (1,2): 左から下へ曲がる
-	m_board.GetTile(1, 3).mask = UP | RIGHT;   // (1,3): 上から右へ曲がる
-	m_board.GetTile(2, 3).mask = LEFT | RIGHT; // (2,3): 横直線
-	m_board.GetTile(3, 3).mask = LEFT | UP;    // (3,3): 左から上へ曲がる
-	m_board.GetTile(3, 2).mask = DOWN | RIGHT; // (3,2): 下から右へ曲がる
-	m_board.GetTile(4, 2).mask = LEFT | RIGHT; // (4,2): 横直線
-	m_board.GetTile(5, 2).mask = LEFT | RIGHT; // (5,2): 横直線
+	// 2. タイルのランダム回転（ロックされていないマスのみ回転）
+	std::random_device rd;
+	std::mt19937 g(rd());
+	for (int y = 0; y < m_board.GetHeight(); ++y) {
+		for (int x = 0; x < m_board.GetWidth(); ++x) {
+			// ロックされているマス（ゴールなど）はシャッフルしない
+			if (m_board.GetTile(x, y).isLocked)
+				continue;
 
-	// デバイスの取得とNULLチェック
+			int rotations = g() % 4;
+			for (int r = 0; r < rotations; ++r) {
+				m_board.RotateTile(x, y);
+			}
+		}
+	}
+
+	// デバイスの取得
 	ID3D12Device* device = KamataEngine::DirectXCommon::GetInstance()->GetDevice();
 	assert(device != nullptr && "DirectX12 Device の取得に失敗しました！");
 
-	// ----------------------------------------------------
-	// 1. 板ポリゴン（正方形）の頂点＆インデックスバッファ生成
-	// ----------------------------------------------------
+	// 板ポリゴンの頂点（0.2f のタイルサイズ）
+	float half = m_tileSize * 0.5f;
+
 	Vertex vertices[] = {
-	    {{-0.08f, 0.08f, 0.0f},  {0.0f, 0.0f}}, // 左上
-	    {{0.08f, 0.08f, 0.0f},   {1.0f, 0.0f}}, // 右上
-	    {{-0.08f, -0.08f, 0.0f}, {0.0f, 1.0f}}, // 左下
-	    {{0.08f, -0.08f, 0.0f},  {1.0f, 1.0f}}, // 右下
+	    {{-half, half, 0.0f},  {0.0f, 0.0f}}, // 左上
+	    {{half, half, 0.0f},   {1.0f, 0.0f}}, // 右上
+	    {{-half, -half, 0.0f}, {0.0f, 1.0f}}, // 左下
+	    {{half, -half, 0.0f},  {1.0f, 1.0f}}, // 右下
 	};
 
 	uint16_t indices[] = {0, 1, 2, 2, 1, 3};
@@ -71,36 +178,30 @@ void GameScene::Initialize() {
 	m_indexBufferView.SizeInBytes = sizeof(indices);
 	m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
 
-	// ----------------------------------------------------
-	// 2. インスタンスデータ用GPUバッファ（StructuredBuffer）の生成
-	// ----------------------------------------------------
-	UINT instBufferSize = sizeof(PipeInstanceData) * 30;
+	// インスタンスバッファ (100マス分)
+	UINT instBufferSize = sizeof(PipeInstanceData) * m_board.GetWidth() * m_board.GetHeight();
 	auto instResDesc = CD3DX12_RESOURCE_DESC::Buffer(instBufferSize);
 	device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &instResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_instanceBuffer));
 	m_instanceBufferGPUAddress = m_instanceBuffer->GetGPUVirtualAddress();
 
-	// ----------------------------------------------------
-	// 3. シェーダーのコンパイル (VS / PS)
-	// ----------------------------------------------------
+	// シェーダーのコンパイル
 	Microsoft::WRL::ComPtr<ID3DBlob> vsBlob, psBlob, errorBlob;
 
 	HRESULT hrVS = D3DCompileFromFile(L"PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
 	if (FAILED(hrVS)) {
 		if (errorBlob)
 			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-		assert(false && "PipeVS.hlsl の読み込み/コンパイルに失敗しました！");
+		assert(false && "PipeVS.hlsl のコンパイルに失敗しました！");
 	}
 
 	HRESULT hrPS = D3DCompileFromFile(L"PipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
 	if (FAILED(hrPS)) {
 		if (errorBlob)
 			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-		assert(false && "PipePS.hlsl の読み込み/コンパイルに失敗しました！");
+		assert(false && "PipePS.hlsl のコンパイルに失敗しました！");
 	}
 
-	// ----------------------------------------------------
-	// 4. ルートシグネチャ & PSO の作成
-	// ----------------------------------------------------
+	// ルートシグネチャ作成
 	D3D12_ROOT_PARAMETER rootParam = {};
 	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParam.Descriptor.ShaderRegister = 0;
@@ -114,8 +215,6 @@ void GameScene::Initialize() {
 	Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob;
 	HRESULT hrSig = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
 	if (FAILED(hrSig)) {
-		if (errorBlob)
-			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
 		assert(false && "ルートシグネチャのシリアライズに失敗しました");
 	}
 
@@ -124,13 +223,14 @@ void GameScene::Initialize() {
 		assert(false && "CreateRootSignature に失敗しました");
 	}
 
+	// PSO 作成
 	D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 	    {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
 
 	D3D12_RASTERIZER_DESC rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE; // 両面描画
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	psoDesc.pRootSignature = m_rootSignature.Get();
@@ -143,12 +243,12 @@ void GameScene::Initialize() {
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // ★KamataEngineの標準フォーマットへ変更
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	psoDesc.SampleDesc.Count = 1;
 
 	HRESULT hrPSO = device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 	if (FAILED(hrPSO)) {
-		assert(false && "CreateGraphicsPipelineState (PSO作成) に失敗しました");
+		assert(false && "CreateGraphicsPipelineState に失敗しました");
 	}
 
 	RefreshCircuit();
@@ -156,15 +256,13 @@ void GameScene::Initialize() {
 
 void GameScene::Update(float /*deltaTime*/) {
 	Input* input = Input::GetInstance();
-	if (input->IsTriggerMouse(0)) { // 左クリック
+	if (input->IsTriggerMouse(0)) {
 		POINT mousePos;
 		GetCursorPos(&mousePos);
 
-		// ウィンドウハンドルを取得してクライアント領域座標に変換
 		HWND hwnd = WinApp::GetInstance()->GetHwnd();
 		ScreenToClient(hwnd, &mousePos);
 
-		// ウィンドウのクライアントサイズを取得
 		RECT clientRect;
 		GetClientRect(hwnd, &clientRect);
 		int width = clientRect.right - clientRect.left;
@@ -175,27 +273,22 @@ void GameScene::Update(float /*deltaTime*/) {
 }
 
 void GameScene::OnMouseDown(int screenX, int screenY, int windowWidth, int windowHeight) {
-	// 1. スクリーン座標を NDC 座標 (-1.0 ~ 1.0) に変換
 	float ndcX = (2.0f * screenX / windowWidth) - 1.0f;
-	float ndcY = -(2.0f * screenY / windowHeight) + 1.0f; // Y軸は上下反転
+	float ndcY = -(2.0f * screenY / windowHeight) + 1.0f;
 
-	// 2. タイル判定用の半サイズ
-	float halfTile = m_tileSize * 0.5f;
+	float halfX = m_tileSize * 0.5f;
+	float halfY = m_tileSize * 0.5f;
 
-	// 3. 画面上の全タイルの描画矩形と当たり判定
 	for (int y = 0; y < m_board.GetHeight(); ++y) {
 		for (int x = 0; x < m_board.GetWidth(); ++x) {
-			// タイルの中心座標（UpdateInstanceBuffersと同じ計算）
 			float tileCenterX = m_boardOffset.x + (x * m_tileSize);
 			float tileCenterY = m_boardOffset.y - (y * m_tileSize);
 
-			// クリック座標がタイルの範囲内にあるかチェック
-			if (ndcX >= (tileCenterX - halfTile) && ndcX <= (tileCenterX + halfTile) && ndcY >= (tileCenterY - halfTile) && ndcY <= (tileCenterY + halfTile)) {
+			if (ndcX >= (tileCenterX - halfX) && ndcX <= (tileCenterX + halfX) && ndcY >= (tileCenterY - halfY) && ndcY <= (tileCenterY + halfY)) {
 
-				// 判定が一致したマスのみを回転
 				m_board.RotateTile(x, y);
 				RefreshCircuit();
-				return; // 1つのマスが反応したら終了
+				return;
 			}
 		}
 	}
@@ -219,12 +312,14 @@ void GameScene::UpdateInstanceBuffers() {
 			float posX = m_boardOffset.x + (x * m_tileSize);
 			float posY = m_boardOffset.y - (y * m_tileSize);
 
-			// ★ XMMatrixTranspose を除去してそのまま直接入れる
 			XMMATRIX matWorld = XMMatrixTranslation(posX, posY, 0.0f);
 			XMStoreFloat4x4(&inst.worldMatrix, matWorld);
 
 			inst.isPowered = tile.isPowered ? 1 : 0;
 			inst.mask = static_cast<int>(tile.mask);
+			
+			// ★ ゴール座標なら 1、それ以外なら 0 をセット
+			inst.isGoal = (x == m_goalX && y == m_goalY) ? 1 : 0;
 
 			m_instanceData.push_back(inst);
 		}
@@ -254,6 +349,6 @@ void GameScene::Render(ID3D12GraphicsCommandList* commandList) {
 	commandList->SetGraphicsRootShaderResourceView(0, m_instanceBufferGPUAddress);
 
 	UINT indexCountPerInstance = 6;
-	UINT instanceCount = static_cast<UINT>(m_instanceData.size()); // 30が入っているか
+	UINT instanceCount = static_cast<UINT>(m_instanceData.size());
 	commandList->DrawIndexedInstanced(indexCountPerInstance, instanceCount, 0, 0, 0);
 }

@@ -20,6 +20,7 @@ enum Dir : uint8_t {
 struct Tile {
 	uint8_t mask = NONE;    // 開口方向の論理和 (例: UP | RIGHT)
 	bool isPowered = false; // 通電状態（発光エフェクト用）
+	bool isLocked = false;  // ★ 追加: trueなら回転不可
 };
 
 // ----------------------------------------------------

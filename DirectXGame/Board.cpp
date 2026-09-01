@@ -18,6 +18,10 @@ void Board::RotateTile(int x, int y) {
 	if (!IsValid(x, y))
 		return;
 
+	Tile& tile = GetTile(x, y);
+	if (tile.isLocked)
+		return; // ★ ロックされているマスは回転しない
+
 	uint8_t mask = m_tiles[y][x].mask;
 	uint8_t newMask = 0;
 
