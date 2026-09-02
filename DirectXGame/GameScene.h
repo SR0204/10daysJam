@@ -2,6 +2,7 @@
 
 #include "Board.h"
 #include "CircuitSolver.h"
+#include "IScene.h"
 #include "KamataEngine.h"
 #include <DirectXMath.h>
 #include <d3d12.h>
@@ -18,7 +19,7 @@ struct PipeInstanceData {
 	float padding[1];                // 4 bytes (パディングを1個に修正)
 };
 
-class GameScene {
+class GameScene : public IScene {
 private:
 	Board m_board;
 
@@ -45,8 +46,8 @@ private:
 	D3D12_GPU_VIRTUAL_ADDRESS m_instanceBufferGPUAddress = 0;
 
 public:
-	GameScene();
-	~GameScene() = default;
+	GameScene(int boardWidth = 18, int boardHeight = 10);
+	~GameScene() override = default;
 
 	void Initialize();
 	void Update(float deltaTime);

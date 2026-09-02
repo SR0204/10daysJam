@@ -1,5 +1,7 @@
 #include "GameScene.h"
 #include "CircuitSolver.h"
+#include "SceneManager.h"
+#include "StageSelectScene.h"
 #include <algorithm>
 #include <cassert>
 #include <d3d12.h>
@@ -21,7 +23,7 @@ struct Vertex {
 
 // 画面全体を埋める 10x10 グリッドで初期化
 // 左上 (0,0) をスタート、右下 (9,9) をゴールに指定
-GameScene::GameScene() : m_board(18, 10), m_startX(0), m_startY(0), m_goalX(17), m_goalY(9) {}
+GameScene::GameScene(int boardWidth, int boardHeight) : m_board(boardWidth, boardHeight), m_startX(0), m_startY(0), m_goalX(boardWidth - 1), m_goalY(boardHeight - 1) {}
 
 // ----------------------------------------------------
 // 全マスを巡回する唯一の正解ルート（迷路）を生成
@@ -253,6 +255,13 @@ void GameScene::Initialize() {
 }
 
 void GameScene::Update(float /*deltaTime*/) {
+
+	// ★ クリア時に SPACE キーでステージセレクトへ戻る
+	if (m_isCleared && Input::GetInstance()->PushKey(DIK_SPACE)) {
+		m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
+		return;
+	}
+
 	Input* input = Input::GetInstance();
 	if (input->IsTriggerMouse(0)) {
 		POINT mousePos;
@@ -307,29 +316,27 @@ void GameScene::RefreshCircuit() {
 }
 
 void GameScene::UpdateInstanceBuffers() {
-	m_instanceData.clear();
 
 	// 画面アスペクト比（16:9）から必要な横マス数を算出 (10 * (16/9) = 17.77... -> 18マス)
-	float aspectRatio = 1280.0f / 720.0f;
-	int boardHeight = 10;
-	int boardWidth = static_cast<int>(std::ceil(boardHeight * aspectRatio));
+	// float aspectRatio = 1280.0f / 720.0f;
+	// int boardHeight = 10;
+	// int boardWidth = static_cast<int>(std::ceil(boardHeight * aspectRatio));
 
-	// もし盤面サイズが変わっていたらリサイズ（ゴール位置も右下に再設定）
-	if (m_board.GetWidth() != boardWidth || m_board.GetHeight() != boardHeight) {
-		m_board = Board(boardWidth, boardHeight);
-		m_goalX = boardWidth - 1;
-		m_goalY = boardHeight - 1;
-		GenerateStage();
-	}
+	//// もし盤面サイズが変わっていたらリサイズ（ゴール位置も右下に再設定）
+	// if (m_board.GetWidth() != boardWidth || m_board.GetHeight() != boardHeight) {
+	//	m_board = Board(boardWidth, boardHeight);
+	//	m_goalX = boardWidth - 1;
+	//	m_goalY = boardHeight - 1;
+	//	GenerateStage();
+	// }
 
+	m_instanceData.clear();
 	m_instanceData.reserve(m_board.GetWidth() * m_board.GetHeight());
 
-	// 縦10マス（高さ2.0 / 10 = 0.2）
+	float aspectRatio = 1280.0f / 720.0f;
 	float tileSizeY = 2.0f / static_cast<float>(m_board.GetHeight());
-	// ★ 正方形を保つための横幅（0.2 / 1.777... = 約0.1125）
 	float tileSizeX = tileSizeY / aspectRatio;
 
-	// 画面中央寄せの配置座標計算（画面左右ピッタリに埋まります）
 	float totalWidthX = tileSizeX * static_cast<float>(m_board.GetWidth());
 	float startX = -totalWidthX * 0.5f + (tileSizeX * 0.5f);
 	float startY = 1.0f - (tileSizeY * 0.5f);
