@@ -6,11 +6,11 @@ struct VSInput
 
 struct InstanceData
 {
-    float4x4 worldMatrix;
-    int isPowered;
-    int mask;
-    int isGoal;
-    float2 padding;
+    float4x4 worldMatrix; // 64 bytes
+    int isPowered; // 4 bytes
+    int mask; // 4 bytes
+    int isGoal; // 4 bytes
+    float padding; // 4 bytes
 };
 
 StructuredBuffer<InstanceData> gInstanceData : register(t0);
@@ -29,7 +29,9 @@ VSOutput main(VSInput input, uint instanceID : SV_InstanceID)
     VSOutput output;
     InstanceData inst = gInstanceData[instanceID];
 
-    float4 worldPos = mul(inst.worldMatrix, float4(input.pos, 1.0f));
+    // š C³Fmul(Vector, Matrix) ‚Ì‡‚É‚·‚é
+    float4 worldPos = mul(float4(input.pos, 1.0f), inst.worldMatrix);
+
     output.pos = worldPos;
     output.uv = input.uv;
     output.isPowered = inst.isPowered;

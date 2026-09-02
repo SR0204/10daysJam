@@ -21,7 +21,7 @@ struct Vertex {
 
 // 画面全体を埋める 10x10 グリッドで初期化
 // 左上 (0,0) をスタート、右下 (9,9) をゴールに指定
-GameScene::GameScene() : m_board(10, 10), m_startX(0), m_startY(0), m_goalX(9), m_goalY(9) {}
+GameScene::GameScene() : m_board(18, 10), m_startX(0), m_startY(0), m_goalX(17), m_goalY(9) {}
 
 // ----------------------------------------------------
 // 全マスを巡回する唯一の正解ルート（迷路）を生成
@@ -141,14 +141,12 @@ void GameScene::Initialize() {
 	ID3D12Device* device = KamataEngine::DirectXCommon::GetInstance()->GetDevice();
 	assert(device != nullptr && "DirectX12 Device の取得に失敗しました！");
 
-	// 板ポリゴンの頂点（0.2f のタイルサイズ）
-	float half = m_tileSize * 0.5f;
-
+	// 板ポリゴンを基準サイズ (1.0 x 1.0) で定義
 	Vertex vertices[] = {
-	    {{-half, half, 0.0f},  {0.0f, 0.0f}}, // 左上
-	    {{half, half, 0.0f},   {1.0f, 0.0f}}, // 右上
-	    {{-half, -half, 0.0f}, {0.0f, 1.0f}}, // 左下
-	    {{half, -half, 0.0f},  {1.0f, 1.0f}}, // 右下
+	    {{-0.5f, 0.5f, 0.0f},  {0.0f, 0.0f}}, // 左上
+	    {{0.5f, 0.5f, 0.0f},   {1.0f, 0.0f}}, // 右上
+	    {{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}}, // 左下
+	    {{0.5f, -0.5f, 0.0f},  {1.0f, 1.0f}}, // 右下
 	};
 
 	uint16_t indices[] = {0, 1, 2, 2, 1, 3};
@@ -276,13 +274,21 @@ void GameScene::OnMouseDown(int screenX, int screenY, int windowWidth, int windo
 	float ndcX = (2.0f * screenX / windowWidth) - 1.0f;
 	float ndcY = -(2.0f * screenY / windowHeight) + 1.0f;
 
-	float halfX = m_tileSize * 0.5f;
-	float halfY = m_tileSize * 0.5f;
+	float aspectRatio = 1280.0f / 720.0f;
+	float tileSizeY = 2.0f / static_cast<float>(m_board.GetHeight());
+	float tileSizeX = tileSizeY / aspectRatio;
+
+	float totalWidthX = tileSizeX * static_cast<float>(m_board.GetWidth());
+	float startX = -totalWidthX * 0.5f + (tileSizeX * 0.5f);
+	float startY = 1.0f - (tileSizeY * 0.5f);
+
+	float halfX = tileSizeX * 0.5f;
+	float halfY = tileSizeY * 0.5f;
 
 	for (int y = 0; y < m_board.GetHeight(); ++y) {
 		for (int x = 0; x < m_board.GetWidth(); ++x) {
-			float tileCenterX = m_boardOffset.x + (x * m_tileSize);
-			float tileCenterY = m_boardOffset.y - (y * m_tileSize);
+			float tileCenterX = startX + (x * tileSizeX);
+			float tileCenterY = startY - (y * tileSizeY);
 
 			if (ndcX >= (tileCenterX - halfX) && ndcX <= (tileCenterX + halfX) && ndcY >= (tileCenterY - halfY) && ndcY <= (tileCenterY + halfY)) {
 
@@ -302,23 +308,49 @@ void GameScene::RefreshCircuit() {
 
 void GameScene::UpdateInstanceBuffers() {
 	m_instanceData.clear();
+
+	// 画面アスペクト比（16:9）から必要な横マス数を算出 (10 * (16/9) = 17.77... -> 18マス)
+	float aspectRatio = 1280.0f / 720.0f;
+	int boardHeight = 10;
+	int boardWidth = static_cast<int>(std::ceil(boardHeight * aspectRatio));
+
+	// もし盤面サイズが変わっていたらリサイズ（ゴール位置も右下に再設定）
+	if (m_board.GetWidth() != boardWidth || m_board.GetHeight() != boardHeight) {
+		m_board = Board(boardWidth, boardHeight);
+		m_goalX = boardWidth - 1;
+		m_goalY = boardHeight - 1;
+		GenerateStage();
+	}
+
 	m_instanceData.reserve(m_board.GetWidth() * m_board.GetHeight());
+
+	// 縦10マス（高さ2.0 / 10 = 0.2）
+	float tileSizeY = 2.0f / static_cast<float>(m_board.GetHeight());
+	// ★ 正方形を保つための横幅（0.2 / 1.777... = 約0.1125）
+	float tileSizeX = tileSizeY / aspectRatio;
+
+	// 画面中央寄せの配置座標計算（画面左右ピッタリに埋まります）
+	float totalWidthX = tileSizeX * static_cast<float>(m_board.GetWidth());
+	float startX = -totalWidthX * 0.5f + (tileSizeX * 0.5f);
+	float startY = 1.0f - (tileSizeY * 0.5f);
 
 	for (int y = 0; y < m_board.GetHeight(); ++y) {
 		for (int x = 0; x < m_board.GetWidth(); ++x) {
 			const Tile& tile = m_board.GetTile(x, y);
 
 			PipeInstanceData inst;
-			float posX = m_boardOffset.x + (x * m_tileSize);
-			float posY = m_boardOffset.y - (y * m_tileSize);
 
-			XMMATRIX matWorld = XMMatrixTranslation(posX, posY, 0.0f);
-			XMStoreFloat4x4(&inst.worldMatrix, matWorld);
+			float posX = startX + (x * tileSizeX);
+			float posY = startY - (y * tileSizeY);
+
+			XMMATRIX matScale = XMMatrixScaling(tileSizeX, tileSizeY, 1.0f);
+			XMMATRIX matTrans = XMMatrixTranslation(posX, posY, 0.0f);
+			XMMATRIX matWorld = matScale * matTrans;
+
+			XMStoreFloat4x4(&inst.worldMatrix, XMMatrixTranspose(matWorld));
 
 			inst.isPowered = tile.isPowered ? 1 : 0;
 			inst.mask = static_cast<int>(tile.mask);
-			
-			// ★ ゴール座標なら 1、それ以外なら 0 をセット
 			inst.isGoal = (x == m_goalX && y == m_goalY) ? 1 : 0;
 
 			m_instanceData.push_back(inst);
