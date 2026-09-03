@@ -31,6 +31,9 @@ private:
 
 	void UpdateInstanceBuffers();
 
+	// リソース系統
+	uint32_t m_textureHandleOn = 0;
+
 public:
 	TitleScene();
 	~TitleScene() override = default;

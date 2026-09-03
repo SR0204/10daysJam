@@ -158,6 +158,8 @@
     <ClCompile Include="CircuitSolver.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PipeRenderer.cpp" />
+    <ClCompile Include="PipeTransformHelper.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="StageSelectScene.cpp" />
     <ClCompile Include="TitleScene.cpp" />
@@ -279,6 +281,8 @@
     <ClInclude Include="CircuitSolver.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="IScene.h" />
+    <ClInclude Include="PipeRenderer.h" />
+    <ClInclude Include="PipeTransformHelper.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="StageSelectScene.h" />
     <ClInclude Include="TitleScene.h" />

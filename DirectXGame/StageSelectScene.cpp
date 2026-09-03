@@ -2,6 +2,7 @@
 #include "GameScene.h"
 #include "SceneManager.h"
 #include "base/DirectXCommon.h"
+#include "base/TextureManager.h"
 #include "input/Input.h"
 #include <cassert>
 #include <d3dcompiler.h>
@@ -14,7 +15,6 @@ StageSelectScene::StageSelectScene() : m_board(18, 10) {}
 
 void StageSelectScene::Initialize() {
 	// 18x10 のグリッド上に「1」と「2」を描画するドット配列 (1: ON, 0: OFF)
-	// 左側に「1」、右側に「2」を配置
 	const int fontMap[10][18] = {
 	    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0},
@@ -88,14 +88,54 @@ void StageSelectScene::Initialize() {
 	D3DCompileFromFile(L"PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
 	D3DCompileFromFile(L"PipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
 
-	D3D12_ROOT_PARAMETER rootParam = {};
-	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-	rootParam.Descriptor.ShaderRegister = 0;
-	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	// テクスチャ読み込み
+	// m_textureHandleOff = TextureManager::Load("Pipe/I_Pipe/I_Pipe_Off.png");
+	// m_textureHandleOn = TextureManager::Load("Pipe/I_Pipe/I_Pipe_On.png");
+
+	// ルートパラメータの設定 (t0: インスタンス, t1: テクスチャOFF, t2: テクスチャON)
+	D3D12_ROOT_PARAMETER rootParams[3] = {};
+
+	// t0: インスタンスデータ (StructuredBuffer)
+	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[0].Descriptor.ShaderRegister = 0;
+	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	// t1: テクスチャOFF (Descriptor Table)
+	D3D12_DESCRIPTOR_RANGE rangeOff = {};
+	rangeOff.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	rangeOff.NumDescriptors = 1;
+	rangeOff.BaseShaderRegister = 1;
+	rangeOff.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+	rootParams[1].DescriptorTable.pDescriptorRanges = &rangeOff;
+	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	// t2: テクスチャON (Descriptor Table)
+	D3D12_DESCRIPTOR_RANGE rangeOn = {};
+	rangeOn.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	rangeOn.NumDescriptors = 1;
+	rangeOn.BaseShaderRegister = 2;
+	rangeOn.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+	rootParams[2].DescriptorTable.pDescriptorRanges = &rangeOn;
+	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	// サンプラー設定 (s0)
+	D3D12_STATIC_SAMPLER_DESC sampler = {};
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.ShaderRegister = 0;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
-	rootSigDesc.NumParameters = 1;
-	rootSigDesc.pParameters = &rootParam;
+	rootSigDesc.NumParameters = _countof(rootParams);
+	rootSigDesc.pParameters = rootParams;
+	rootSigDesc.NumStaticSamplers = 1;
+	rootSigDesc.pStaticSamplers = &sampler;
 	rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob;
@@ -193,7 +233,12 @@ void StageSelectScene::Render(ID3D12GraphicsCommandList* commandList) {
 	commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	commandList->IASetIndexBuffer(&m_indexBufferView);
 
+	// t0: インスタンスバッファ
 	commandList->SetGraphicsRootShaderResourceView(0, m_instanceBufferGPUAddress);
+
+	// t1, t2: テクスチャデスクリプタテーブルのセット
+	// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 1, m_textureHandleOff);
+	// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, m_textureHandleOn);
 
 	commandList->DrawIndexedInstanced(6, static_cast<UINT>(m_instanceData.size()), 0, 0, 0);
 }

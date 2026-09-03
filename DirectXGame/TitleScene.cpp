@@ -1,9 +1,10 @@
 #include "TitleScene.h"
-#include "base/DirectXCommon.h"
-#include "input/Input.h"
 #include "SceneManager.h"
 #include "StageSelectScene.h"
+#include "base/DirectXCommon.h"
+#include "base/TextureManager.h"
 #include "base/WinApp.h"
+#include "input/Input.h"
 #include <cassert>
 #include <d3dcompiler.h>
 #include <d3dx12.h>
@@ -11,22 +12,13 @@
 using namespace DirectX;
 using namespace KamataEngine;
 
-TitleScene::TitleScene() : m_board(18, 10) {}
+TitleScene::TitleScene() : m_board(1, 1) {}
 
 void TitleScene::Initialize() {
-	// 盤面初期化：タイトルロゴ風のグラフィック用にパターン配置 (背景・通電アニメーション付き)
-	for (int y = 0; y < m_board.GetHeight(); ++y) {
-		for (int x = 0; x < m_board.GetWidth(); ++x) {
-			Tile& tile = m_board.GetTile(x, y);
-			tile.mask = UP | RIGHT | DOWN | LEFT; // 十字パイプで統一
-			tile.isPowered = true;                // ★ すべて「通電（ON）」にして一色にする（消したい場合は false）
-		}
-	}
-
 	ID3D12Device* device = DirectXCommon::GetInstance()->GetDevice();
 	assert(device != nullptr);
 
-	// GameScene と同じ頂点・インデックス定義
+	// 1. 頂点バッファ・インデックスバッファ作成
 	struct Vertex {
 		XMFLOAT3 pos;
 		XMFLOAT2 uv;
@@ -64,27 +56,53 @@ void TitleScene::Initialize() {
 	m_indexBufferView.SizeInBytes = sizeof(indices);
 	m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
 
-	// インスタンスバッファ
-	UINT instBufferSize = sizeof(PipeInstanceData) * m_board.GetWidth() * m_board.GetHeight();
+	UINT instBufferSize = sizeof(PipeInstanceData);
 	auto instResDesc = CD3DX12_RESOURCE_DESC::Buffer(instBufferSize);
 	device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &instResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_instanceBuffer));
 	m_instanceBufferGPUAddress = m_instanceBuffer->GetGPUVirtualAddress();
 
-	// シェーダー・パイプライン読み込み (PipeVS.hlsl / PipePS.hlsl 流用)
+	// 2. ★ここで先にシェーダーをコンパイルする！
 	Microsoft::WRL::ComPtr<ID3DBlob> vsBlob, psBlob, errorBlob;
-	D3DCompileFromFile(L"PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
-	D3DCompileFromFile(L"PipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
 
-	D3D12_ROOT_PARAMETER rootParam = {};
-	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-	rootParam.Descriptor.ShaderRegister = 0;
-	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	HRESULT hrVS = D3DCompileFromFile(L"PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
+	if (FAILED(hrVS)) {
+		if (errorBlob)
+			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		assert(false && "PipeVS.hlsl のコンパイルに失敗しました。出力ウィンドウを確認してください。");
+	}
 
-	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
-	rootSigDesc.NumParameters = 1;
-	rootSigDesc.pParameters = &rootParam;
-	rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	HRESULT hrPS = D3DCompileFromFile(L"PipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
+	if (FAILED(hrPS)) {
+		if (errorBlob)
+			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		assert(false && "PipePS.hlsl のコンパイルに失敗しました。出力ウィンドウを確認してください。");
+	}
 
+	// 3. テクスチャ＆ルートシグネチャ作成
+	m_textureHandleOn = TextureManager::Load("Title/Title.png");
+
+	D3D12_ROOT_PARAMETER rootParams[3] = {};
+	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[0].Descriptor.ShaderRegister = 0;
+	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_DESCRIPTOR_RANGE rangeOff = {D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND};
+	rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[1].DescriptorTable = {1, &rangeOff};
+	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	D3D12_DESCRIPTOR_RANGE rangeOn = {D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND};
+	rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[2].DescriptorTable = {1, &rangeOn};
+	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	D3D12_STATIC_SAMPLER_DESC sampler = {};
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.ShaderRegister = 0;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {_countof(rootParams), rootParams, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
 	Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob;
 	D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
 	device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature));
@@ -94,6 +112,7 @@ void TitleScene::Initialize() {
 	    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
 
+	// 4. ★コンパイル済みの vsBlob / psBlob を使って PSO を作成する
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	psoDesc.pRootSignature = m_rootSignature.Get();
 	psoDesc.VS = {vsBlob->GetBufferPointer(), vsBlob->GetBufferSize()};
@@ -113,21 +132,8 @@ void TitleScene::Initialize() {
 
 	UpdateInstanceBuffers();
 }
-
 void TitleScene::Update(float deltaTime) {
 	m_animationTimer += deltaTime;
-
-	// 点滅アニメーション（一定時間ごとに通電パターン変更）
-	/*if (m_animationTimer >= 0.5f) {
-		m_animationTimer = 0.0f;
-		for (int y = 0; y < m_board.GetHeight(); ++y) {
-			for (int x = 0; x < m_board.GetWidth(); ++x) {
-				Tile& tile = m_board.GetTile(x, y);
-				tile.isPowered = !tile.isPowered;
-			}
-		}
-		UpdateInstanceBuffers();
-	}*/
 
 	// SPACE キーでステージセレクトへ遷移
 	if (Input::GetInstance()->PushKey(DIK_SPACE)) {
@@ -137,37 +143,21 @@ void TitleScene::Update(float deltaTime) {
 
 void TitleScene::UpdateInstanceBuffers() {
 	m_instanceData.clear();
-	m_instanceData.reserve(m_board.GetWidth() * m_board.GetHeight());
 
-	float aspectRatio = 1280.0f / 720.0f;
-	float tileSizeY = 2.0f / static_cast<float>(m_board.GetHeight());
-	float tileSizeX = tileSizeY / aspectRatio;
+	// 画面全体 (-1.0 ~ 1.0) を覆うように拡大行列を作成 (幅2.0, 高さ2.0)
+	PipeInstanceData inst;
+	XMMATRIX matScale = XMMatrixScaling(2.0f, 2.0f, 1.0f);
+	XMMATRIX matTrans = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	XMMATRIX matWorld = matScale * matTrans;
 
-	float totalWidthX = tileSizeX * static_cast<float>(m_board.GetWidth());
-	float startX = -totalWidthX * 0.5f + (tileSizeX * 0.5f);
-	float startY = 1.0f - (tileSizeY * 0.5f);
+	XMStoreFloat4x4(&inst.worldMatrix, XMMatrixTranspose(matWorld));
 
-	for (int y = 0; y < m_board.GetHeight(); ++y) {
-		for (int x = 0; x < m_board.GetWidth(); ++x) {
-			const Tile& tile = m_board.GetTile(x, y);
+	inst.isPowered = 1;
+	inst.mask = 0;
+	inst.isGoal = 0;
+	inst.chargeProgress = 1.0f; // 100% 表示
 
-			PipeInstanceData inst;
-			float posX = startX + (x * tileSizeX);
-			float posY = startY - (y * tileSizeY);
-
-			XMMATRIX matScale = XMMatrixScaling(tileSizeX, tileSizeY, 1.0f);
-			XMMATRIX matTrans = XMMatrixTranslation(posX, posY, 0.0f);
-			XMMATRIX matWorld = matScale * matTrans;
-
-			XMStoreFloat4x4(&inst.worldMatrix, XMMatrixTranspose(matWorld));
-
-			inst.isPowered = tile.isPowered ? 1 : 0;
-			inst.mask = static_cast<int>(tile.mask);
-			inst.isGoal = 0;
-
-			m_instanceData.push_back(inst);
-		}
-	}
+	m_instanceData.push_back(inst);
 
 	if (m_instanceBuffer && !m_instanceData.empty()) {
 		void* mappedData = nullptr;
@@ -188,7 +178,13 @@ void TitleScene::Render(ID3D12GraphicsCommandList* commandList) {
 	commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	commandList->IASetIndexBuffer(&m_indexBufferView);
 
+	// t0: インスタンスバッファ
 	commandList->SetGraphicsRootShaderResourceView(0, m_instanceBufferGPUAddress);
 
-	commandList->DrawIndexedInstanced(6, static_cast<UINT>(m_instanceData.size()), 0, 0, 0);
+	// t1, t2: テクスチャのバインド
+	// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 1, m_textureHandleOff);
+	TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, m_textureHandleOn);
+
+	// 1つの大判スプライトとして描画
+	commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }

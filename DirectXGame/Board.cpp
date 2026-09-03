@@ -15,25 +15,16 @@ const Tile& Board::GetTile(int x, int y) const { return m_tiles[y][x]; }
 
 // パイプを90度時計回りに回転
 void Board::RotateTile(int x, int y) {
-	if (!IsValid(x, y))
-		return;
-
-	Tile& tile = GetTile(x, y);
-	if (tile.isLocked)
-		return; // ★ ロックされているマスは回転しない
-
-	uint8_t mask = m_tiles[y][x].mask;
+	if (!IsValid(x, y)) return;
+	
+	uint8_t oldMask = m_tiles[y][x].mask;
 	uint8_t newMask = 0;
 
-	// 時計回り（UP -> RIGHT -> DOWN -> LEFT -> UP）にビットを正しく移行
-	if (mask & UP)
-		newMask |= RIGHT;
-	if (mask & RIGHT)
-		newMask |= DOWN;
-	if (mask & DOWN)
-		newMask |= LEFT;
-	if (mask & LEFT)
-		newMask |= UP;
+	// 時計回りシフト: UP->RIGHT, RIGHT->DOWN, DOWN->LEFT, LEFT->UP
+	if (oldMask & UP)    newMask |= RIGHT;
+	if (oldMask & RIGHT) newMask |= DOWN;
+	if (oldMask & DOWN)  newMask |= LEFT;
+	if (oldMask & LEFT)  newMask |= UP;
 
 	m_tiles[y][x].mask = newMask;
 }

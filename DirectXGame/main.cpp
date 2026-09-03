@@ -17,7 +17,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	}
 #endif
 
-	KamataEngine::Initialize(L"解路 - KAIRO");
+	KamataEngine::Initialize(L"4063_解路 ");
 
 	// ★ SceneManager の生成と最初のシーン (TitleScene) の設定
 	SceneManager sceneManager;
