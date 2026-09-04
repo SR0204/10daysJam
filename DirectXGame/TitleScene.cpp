@@ -136,7 +136,7 @@ void TitleScene::Update(float deltaTime) {
 	m_animationTimer += deltaTime;
 
 	// SPACE キーでステージセレクトへ遷移
-	if (Input::GetInstance()->PushKey(DIK_SPACE)) {
+	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
 	}
 }

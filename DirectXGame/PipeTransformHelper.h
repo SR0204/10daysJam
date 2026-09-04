@@ -23,7 +23,7 @@ public:
 			return {PipeType::CROSS, 0.0f};
 		}
 
-		// 2. T字
+		// 2. T字 (★最初にうまくいっていた設定)
 		if (u && l && r && !d)
 			return {PipeType::T, 0.0f}; // ┴ (上・左・右)
 		if (r && u && d && !l)
@@ -33,7 +33,7 @@ public:
 		if (l && u && d && !r)
 			return {PipeType::T, -DirectX::XM_PIDIV2 * 3.0f}; // ┤ (左・上・下)
 
-		// 3. L字
+		// 3. L字 (★最初にうまくいっていた設定)
 		if (d && r && !u && !l)
 			return {PipeType::L, 0.0f}; // ┌ (下・右)
 		if (d && l && !u && !r)
@@ -43,15 +43,11 @@ public:
 		if (u && r && !d && !l)
 			return {PipeType::L, -DirectX::XM_PIDIV2 * 3.0f}; // └ (上・右)
 
-		// 4. I字 (★4回転分を網羅)
-		if (u && d && !l && !r)
-			return {PipeType::I, 0.0f}; // ｜ (上・下) [0度]
-		if (l && r && !u && !d)
-			return {PipeType::I, -DirectX::XM_PIDIV2}; // ― (左・右) [-90度]
-		if (d && u && !l && !r)
-			return {PipeType::I, -DirectX::XM_PI}; // ｜ (下・上) [-180度]
-		if (r && l && !u && !d)
-			return {PipeType::I, -DirectX::XM_PIDIV2 * 3.0f}; // ― (右・左) [-270度]
+		// 4. I字 (★判定が確実に通るようシンプル化)
+		if (u && d)
+			return {PipeType::I, 0.0f}; // ｜ (縦)
+		if (l && r)
+			return {PipeType::I, -DirectX::XM_PIDIV2}; // ― (横)
 
 		// フォールバック
 		if (u || d)

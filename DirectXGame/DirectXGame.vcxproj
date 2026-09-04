@@ -157,11 +157,13 @@
     <ClCompile Include="Board.cpp" />
     <ClCompile Include="CircuitSolver.cpp" />
     <ClCompile Include="GameScene.cpp" />
+    <ClCompile Include="Goal.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PipeRenderer.cpp" />
     <ClCompile Include="PipeTransformHelper.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="StageSelectScene.cpp" />
+    <ClCompile Include="Start.cpp" />
     <ClCompile Include="TitleScene.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -280,11 +282,13 @@
     <ClInclude Include="Board.h" />
     <ClInclude Include="CircuitSolver.h" />
     <ClInclude Include="GameScene.h" />
+    <ClInclude Include="Goal.h" />
     <ClInclude Include="IScene.h" />
     <ClInclude Include="PipeRenderer.h" />
     <ClInclude Include="PipeTransformHelper.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="StageSelectScene.h" />
+    <ClInclude Include="Start.h" />
     <ClInclude Include="TitleScene.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

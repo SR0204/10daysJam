@@ -1,7 +1,9 @@
 #pragma once
 #include "Board.h"
+#include "Goal.h"
 #include "IScene.h"
 #include "PipeRenderer.h"
+#include "Start.h"
 #include <memory>
 #include <vector>
 
@@ -17,6 +19,8 @@ private:
 
 	bool m_isCleared = false;
 	std::vector<std::vector<float>> m_chargeProgress;
+	Goal m_goal;
+	Start m_start;
 
 public:
 	GameScene(int boardWidth = 18, int boardHeight = 10);

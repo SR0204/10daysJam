@@ -2,6 +2,7 @@
 #include "CircuitSolver.h"
 #include "SceneManager.h"
 #include "StageSelectScene.h"
+#include "TitleScene.h"
 #include "base/WinApp.h"
 #include "input/Input.h"
 #include <algorithm>
@@ -13,14 +14,30 @@ using namespace KamataEngine;
 GameScene::GameScene(int boardWidth, int boardHeight) : m_board(boardWidth, boardHeight), m_startX(0), m_startY(0), m_goalX(boardWidth - 1), m_goalY(boardHeight - 1) {}
 
 void GameScene::Initialize() {
+	// 1. スタートとゴールの初期化
+	m_start.Initialize(m_startX, m_startY);
+	m_goal.Initialize(m_goalX, m_goalY);
+
+	// 2. ステージ生成（スタートマスが RIGHT | DOWN に設定される）
 	GenerateStage();
+
+	// 3. ゴールの向き決定と位置計算
+	m_goal.SetupRotation(m_board);
+
+	float winWidth = static_cast<float>(WinApp::kWindowWidth);
+	float winHeight = static_cast<float>(WinApp::kWindowHeight);
+
+	m_start.UpdatePosition(m_board.GetWidth(), m_board.GetHeight(), winWidth, winHeight);
+	m_goal.UpdatePosition(m_board.GetWidth(), m_board.GetHeight(), winWidth, winHeight);
+
+	// 4. チャージ率配列の初期化
 	m_chargeProgress.assign(m_board.GetHeight(), std::vector<float>(m_board.GetWidth(), 0.0f));
 
+	// 5. 盤面のシャッフル（スタート・ゴール以外をランダム回転）
 	std::random_device rd;
 	std::mt19937 g(rd());
 	for (int y = 0; y < m_board.GetHeight(); ++y) {
 		for (int x = 0; x < m_board.GetWidth(); ++x) {
-			// ★ スタート地点とゴール地点（ロックマス）はシャッフルしない
 			if ((x == m_startX && y == m_startY) || (x == m_goalX && y == m_goalY))
 				continue;
 
@@ -33,12 +50,22 @@ void GameScene::Initialize() {
 		}
 	}
 
-	// 描画クラスの初期化
+	// 6. 描画クラスの初期化
 	m_renderer.Initialize(m_board.GetWidth(), m_board.GetHeight());
+
+	// ★ 7. シャッフルが終わった【後】に通電状態を更新する！
 	RefreshCircuit();
+
+	// ★ 8. 回路計算後に確実にスタート位置の通電・チャージを 1.0f に保証する
+	m_board.GetTile(m_startX, m_startY).isPowered = true;
+	m_chargeProgress[m_startY][m_startX] = 1.0f;
+
+	// ★ 9. スタートマスの確定状態を描画バッファへ反映
+	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
 }
 
 void GameScene::Update(float deltaTime) {
+	// 1. 通電アニメーション（チャージ）の更新
 	float chargeSpeed = 3.0f;
 	for (int y = 0; y < m_board.GetHeight(); ++y) {
 		for (int x = 0; x < m_board.GetWidth(); ++x) {
@@ -51,13 +78,23 @@ void GameScene::Update(float deltaTime) {
 		}
 	}
 
+	// 2. ゴール状態の更新（タイマー等の進行）
+	m_goal.Update(m_board, deltaTime);
+
+	// 3. 描画バッファの更新
 	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
 
-	if (m_isCleared && Input::GetInstance()->PushKey(DIK_SPACE)) {
-		m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
+	// 4. クリア時の処理
+	if (m_goal.IsReached()) {
+		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+			m_sceneManager->ChangeScene(std::make_unique<TitleScene>());
+			return;
+		}
+		// クリア時は以降の操作（回転）を受け付けない
 		return;
 	}
 
+	// 5. 通常時の入力処理
 	Input* input = Input::GetInstance();
 	if (input->IsTriggerMouse(0)) {
 		POINT mousePos;
@@ -70,6 +107,7 @@ void GameScene::Update(float deltaTime) {
 		OnMouseDown(mousePos.x, mousePos.y, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
 	}
 }
+
 void GameScene::OnMouseDown(int screenX, int screenY, int windowWidth, int windowHeight) {
 	// クライアント領域のピクセルサイズから直接 NDC 座標 (-1.0 ～ 1.0) を算出
 	float ndcX = (2.0f * static_cast<float>(screenX) / static_cast<float>(windowWidth)) - 1.0f;
@@ -107,12 +145,23 @@ void GameScene::OnMouseDown(int screenX, int screenY, int windowWidth, int windo
 }
 
 void GameScene::RefreshCircuit() {
+	// 回路の通電状態を最新化
 	CircuitSolver::UpdatePower(m_board, m_startX, m_startY);
-	m_isCleared = m_board.GetTile(m_goalX, m_goalY).isPowered;
+
+	// パイプが回転して通電が変わった直後にゴール状態も同期更新
+	m_goal.Update(m_board, 0.0f);
+
 	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
 }
 
-void GameScene::Render(ID3D12GraphicsCommandList* commandList) { m_renderer.Render(commandList); }
+void GameScene::Render(ID3D12GraphicsCommandList* commandList) {
+	// 1. パイプ盤面の描画
+	m_renderer.Render(commandList);
+
+	// 2. スタートとゴールの描画
+	m_start.Render(commandList);
+	m_goal.Render(commandList);
+}
 
 void GameScene::GenerateStage() {
 	int width = m_board.GetWidth();
@@ -179,6 +228,27 @@ void GameScene::GenerateStage() {
 			}
 		}
 
+		// ★ スタートマス（0,0）の接続口を「右」と「下」の両方に開けておく
+		m_board.GetTile(m_startX, m_startY).mask = (RIGHT | DOWN);
+
+		// ★ ゴールマス・スタートマス以外の行き止まりマスを補正する
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+				if ((x == m_startX && y == m_startY) || (x == m_goalX && y == m_goalY)) {
+					continue;
+				}
+
+				uint8_t m = m_board.GetTile(x, y).mask;
+
+				// 開口が1つしかない場合（例: LEFTだけ）
+				if (m == UP || m == DOWN) {
+					m_board.GetTile(x, y).mask = (UP | DOWN); // 縦I字にする
+				} else if (m == LEFT || m == RIGHT) {
+					m_board.GetTile(x, y).mask = (LEFT | RIGHT); // 横I字にする
+				}
+			}
+		}
+
 		m_board.GetTile(m_startX, m_startY).isLocked = true;
 		m_board.GetTile(m_goalX, m_goalY).isLocked = true;
 
@@ -195,6 +265,5 @@ void GameScene::GenerateStage() {
 		}
 	}
 
-	//m_board.GetTile(m_startX, m_startY).mask |= LEFT;
 	m_board.GetTile(m_startX, m_startY).isLocked = true;
 }
