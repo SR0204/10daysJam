@@ -18,10 +18,10 @@ GameScene::GameScene(int boardWidth, int boardHeight)
 GameScene::~GameScene() {
 	delete m_bgSprite;
 
-	// シーン切り替え時にBGMを停止
+	// ★ m_playHandle を指定して安全に停止
 	auto audio = Audio::GetInstance();
-	if (audio && m_bgmHandle != 0) {
-		audio->StopWave(m_bgmHandle);
+	if (audio && m_playHandle != 0) {
+		audio->StopWave(m_playHandle);
 	}
 }
 
@@ -123,7 +123,7 @@ void GameScene::Update(float deltaTime) {
 	if (m_goal.IsReached()) {
 		// クリアした最初の1フレームだけPlayBGMを止めてクリアBGMを再生
 		if (!m_isClearBgmPlayed) {
-			Audio::GetInstance()->StopWave(m_bgmHandle);
+			Audio::GetInstance()->StopWave(m_playHandle);
 			m_gameClear->PlayBGM();
 			m_isClearBgmPlayed = true;
 		}
@@ -172,7 +172,7 @@ void GameScene::Update(float deltaTime) {
 		m_isGameOver = true; // タイムアップ
 
 		// GameScene の BGM を停止して GameOver の BGM を再生
-		Audio::GetInstance()->StopWave(m_bgmHandle);
+		Audio::GetInstance()->StopWave(m_playHandle);
 		m_gameOver->PlayBGM();
 	}
 }

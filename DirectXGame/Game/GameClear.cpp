@@ -40,16 +40,25 @@ GameClearResult GameClear::Update() {
 
 	// Rキーでリトライ
 	if (input->TriggerKey(DIK_R)) {
+		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
+		Audio::GetInstance()->StopWave(m_playHandle);
+		Audio::GetInstance()->StopWave(m_bgmHandle);
 		return GameClearResult::Retry;
 	}
 
 	// SPACEキーでステージセレクトへ戻る
 	if (input->TriggerKey(DIK_SPACE)) {
+		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
+		Audio::GetInstance()->StopWave(m_playHandle);
+		Audio::GetInstance()->StopWave(m_bgmHandle);
 		return GameClearResult::StageSelect;
 	}
 
 	// Tキーでタイトルへ戻る
 	if (input->TriggerKey(DIK_T)) {
+		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
+		Audio::GetInstance()->StopWave(m_playHandle);
+		Audio::GetInstance()->StopWave(m_bgmHandle);
 		return GameClearResult::Title;
 	}
 
