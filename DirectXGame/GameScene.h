@@ -35,6 +35,10 @@ private:
 	int m_stageWidth = 0;
 	int m_stageHeight = 0;
 
+	// 背景画像用
+	uint32_t m_bgTexture = 0;
+	KamataEngine::Sprite* m_bgSprite = nullptr;
+
 public:
 	GameScene(int boardWidth = 18, int boardHeight = 10);
 	~GameScene();

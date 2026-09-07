@@ -14,9 +14,22 @@ using namespace KamataEngine;
 GameScene::GameScene(int boardWidth, int boardHeight)
     : m_board(boardWidth, boardHeight), m_stageWidth(boardWidth), m_stageHeight(boardHeight), m_startX(0), m_startY(0), m_goalX(boardWidth - 1), m_goalY(boardHeight - 1) {}
 
-GameScene::~GameScene() { delete m_clearSprite; }
+GameScene::~GameScene() {
+	delete m_clearSprite;
+	delete m_bgSprite;
+}
 
 void GameScene::Initialize() {
+
+	// ★ 背景スプライトの生成
+	m_bgTexture = TextureManager::Load("BuckStage/BuckStage.png");
+	m_bgSprite = Sprite::Create(m_bgTexture, {0.0f, 0.0f});
+	if (m_bgSprite) {
+		float winWidth = static_cast<float>(WinApp::kWindowWidth);
+		float winHeight = static_cast<float>(WinApp::kWindowHeight);
+		m_bgSprite->SetSize({winWidth, winHeight}); // 画面いっぱいに広げる
+	}
+
 	// 1. スタートとゴールの初期化
 	m_start.Initialize(m_startX, m_startY);
 	m_goal.Initialize(m_goalX, m_goalY);
@@ -202,6 +215,14 @@ void GameScene::RefreshCircuit() {
 }
 
 void GameScene::Render(ID3D12GraphicsCommandList* commandList) {
+
+	// ★ 1. 最背景の画像描画
+	if (m_bgSprite) {
+		Sprite::PreDraw(commandList);
+		m_bgSprite->Draw();
+		Sprite::PostDraw();
+	}
+
 	// 1. パイプ・スタート・ゴールの描画（3D/背景）
 	m_renderer.Render(commandList);
 	m_start.Render(commandList);
