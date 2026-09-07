@@ -17,12 +17,6 @@ GameScene::GameScene(int boardWidth, int boardHeight)
 
 GameScene::~GameScene() {
 	delete m_bgSprite;
-
-	// ★ m_playHandle を指定して安全に停止
-	auto audio = Audio::GetInstance();
-	if (audio && m_playHandle != 0) {
-		audio->StopWave(m_playHandle);
-	}
 }
 
 void GameScene::Initialize() {

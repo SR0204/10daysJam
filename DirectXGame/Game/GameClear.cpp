@@ -8,12 +8,6 @@ using namespace KamataEngine;
 
 GameClear::~GameClear() {
 	delete m_spriteClear;
-
-	// インスタンス存在チェックを入れて安全に停止
-	auto audio = Audio::GetInstance();
-	if (audio && m_bgmHandle != 0) {
-		audio->StopWave(m_bgmHandle);
-	}
 }
 
 void GameClear::Initialize() {

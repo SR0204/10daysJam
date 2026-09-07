@@ -53,13 +53,13 @@ void Goal::Render(ID3D12GraphicsCommandList* commandList) {
 		m_sprite->SetTextureHandle(m_textureOff);
 	}
 
-	// 2. マス目（1セル）のピクセルサイズにフィットさせる
-	m_sprite->SetSize({m_tileSizeX, m_tileSizeY});
+	// ★ 修正：ここで m_sprite->SetSize({m_tileSizeX, m_tileSizeY}); を行っていたのを削除！
+	// (サイズ設定は UpdatePosition 内で行います)
 
-	// ★ 3. 確定した回転角をスプライトに適用する（ここを追加！）
+	// 2. 確定した回転角をスプライトに適用する
 	m_sprite->SetRotation(m_rotation);
 
-	// 4. 描画処理
+	// 3. 描画処理
 	Sprite::PreDraw(commandList);
 	m_sprite->Draw();
 	Sprite::PostDraw();
@@ -88,22 +88,39 @@ void Goal::SetupRotation(const Board& board) {
 }
 
 void Goal::UpdatePosition(int boardWidth, int boardHeight, float windowWidth, float windowHeight) {
-	if (!m_sprite)
-		return;
+	float aspectRatio = windowWidth / windowHeight; // 16:9
 
-	m_tileSizeX = windowWidth / static_cast<float>(boardWidth);
-	m_tileSizeY = windowHeight / static_cast<float>(boardHeight);
+	// 1. NDC空間（-1.0～1.0）でのマスサイズを算出
+	float tileSizeY_NDC = 2.0f / static_cast<float>(boardHeight);
+	float tileSizeX_NDC = tileSizeY_NDC / aspectRatio;
 
-	// ★ 回転の軸を中心（0.5, 0.5）に設定
-	m_sprite->SetAnchorPoint({0.5f, 0.5f});
+	// 盤面全体の幅と、左上マス（0,0）の中心座標（NDC）
+	float totalWidthNDC = tileSizeX_NDC * static_cast<float>(boardWidth);
+	float startX_NDC = -totalWidthNDC * 0.5f + (tileSizeX_NDC * 0.5f);
+	float startY_NDC = 1.0f - (tileSizeY_NDC * 0.5f);
 
-	// ★ 中心基準の位置計算
-	float posX = (m_x + 0.5f) * m_tileSizeX;
-	float posY = (m_y + 0.5f) * m_tileSizeY;
+	// 指定マス (m_x, m_y) の中心位置（NDC）
+	float posX_NDC = startX_NDC + (m_x * tileSizeX_NDC);
+	float posY_NDC = startY_NDC - (m_y * tileSizeY_NDC);
 
-	m_sprite->SetPosition({posX, posY});
-	m_sprite->SetSize({m_tileSizeX, m_tileSizeY});
+	// 2. NDC座標をスクリーン座標（ピクセル）に変換
+	// スプライトのサイズ（ピクセル）
+	float spriteWidth = (tileSizeX_NDC / 2.0f) * windowWidth;
+	float spriteHeight = (tileSizeY_NDC / 2.0f) * windowHeight;
 
-	// ★ 保持していた回転角をセット
-	m_sprite->SetRotation(m_rotation);
+	// ★ メンバ変数にも正しいサイズを保存
+	m_tileSizeX = spriteWidth;
+	m_tileSizeY = spriteHeight;
+
+	// マスの中心のスクリーン座標 (0,0 は画面左上)
+	float screenX = (posX_NDC + 1.0f) * 0.5f * windowWidth;
+	float screenY = (1.0f - posY_NDC) * 0.5f * windowHeight;
+
+	// 3. スプライトに位置とサイズを設定
+	if (m_sprite) {
+		// アンカーポイントを中心（0.5, 0.5）に設定して中央に配置
+		m_sprite->SetAnchorPoint({0.5f, 0.5f});
+		m_sprite->SetPosition({screenX, screenY});
+		m_sprite->SetSize({spriteWidth, spriteHeight});
+	}
 }

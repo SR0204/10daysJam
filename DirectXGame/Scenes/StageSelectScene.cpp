@@ -18,11 +18,6 @@ StageSelectScene::~StageSelectScene() {
 	// ★ スプライトの解放
 	delete m_spriteNum1;
 	delete m_spriteNum2;
-
-	// シーン切り替え時にBGMを停止
-	if (m_playHandle != 0) {
-		Audio::GetInstance()->StopWave(m_playHandle);
-	}
 }
 
 void StageSelectScene::Initialize() {
@@ -232,12 +227,20 @@ void StageSelectScene::UpdateInstanceBuffers() {
 	m_instanceData.clear();
 	m_instanceData.reserve(m_board.GetWidth() * m_board.GetHeight());
 
-	float aspectRatio = 1280.0f / 720.0f;
+	float winWidth = static_cast<float>(WinApp::kWindowWidth);   // 1280.0f
+	float winHeight = static_cast<float>(WinApp::kWindowHeight); // 720.0f
+	float aspectRatio = winWidth / winHeight;                    // 16:9 (約1.777f)
+
+	// ★ 1. 縦幅いっぱいに収まるベースのマスサイズ（NDC座標系は高さ全域で 2.0f）
 	float tileSizeY = 2.0f / static_cast<float>(m_board.GetHeight());
+	// ★ 正方形にするため、X方向のスケールにはアスペクト比で割った値を適用
 	float tileSizeX = tileSizeY / aspectRatio;
 
-	float totalWidthX = tileSizeX * static_cast<float>(m_board.GetWidth());
-	float startX = -totalWidthX * 0.5f + (tileSizeX * 0.5f);
+	// ★ 2. 盤面全体の幅と高さ（NDC座標）
+	float totalWidthNDC = tileSizeX * static_cast<float>(m_board.GetWidth());
+
+	// ★ 3. 盤面を画面中央に配置するための開始オフセット（左上座標）
+	float startX = -totalWidthNDC * 0.5f + (tileSizeX * 0.5f);
 	float startY = 1.0f - (tileSizeY * 0.5f);
 
 	for (int y = 0; y < m_board.GetHeight(); ++y) {
@@ -248,6 +251,7 @@ void StageSelectScene::UpdateInstanceBuffers() {
 			float posX = startX + (x * tileSizeX);
 			float posY = startY - (y * tileSizeY);
 
+			// スケールと並進の行列作成（マスが歪まないよう正方形描画）
 			XMMATRIX matScale = XMMatrixScaling(tileSizeX, tileSizeY, 1.0f);
 			XMMATRIX matTrans = XMMatrixTranslation(posX, posY, 0.0f);
 			XMMATRIX matWorld = matScale * matTrans;

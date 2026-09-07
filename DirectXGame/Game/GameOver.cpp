@@ -8,10 +8,6 @@ using namespace KamataEngine;
 
 GameOver::~GameOver() {
 	delete m_spriteGameOver;
-	// シーン切り替え時にBGMを停止
-	if (m_playHandle != 0) {
-		Audio::GetInstance()->StopWave(m_playHandle);
-	}
 }
 
 void GameOver::Initialize() {
