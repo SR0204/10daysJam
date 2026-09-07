@@ -1,7 +1,7 @@
 #pragma once
+#include "../App/IScene.h"
+#include "../Game/Board.h"
 #include "2d/Sprite.h"
-#include "Board.h"
-#include "IScene.h"
 
 class TitleScene : public IScene {
 public:

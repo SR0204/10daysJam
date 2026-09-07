@@ -1,7 +1,7 @@
 #define NOMINMAX
+#include "../App/SceneManager.h"
+#include "../Scenes/TitleScene.h"
 #include "KamataEngine.h"
-#include "SceneManager.h"
-#include "TitleScene.h"
 #include <Windows.h>
 #include <d3d12.h>
 #include <wrl.h>

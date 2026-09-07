@@ -154,23 +154,23 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Board.cpp" />
-    <ClCompile Include="CircuitSolver.cpp" />
-    <ClCompile Include="CountDownTimer.cpp" />
-    <ClCompile Include="GameOver.cpp" />
-    <ClCompile Include="GameScene.cpp" />
-    <ClCompile Include="Goal.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="PipeRenderer.cpp" />
-    <ClCompile Include="PipeTransformHelper.cpp" />
-    <ClCompile Include="SceneManager.cpp" />
-    <ClCompile Include="StageSelectScene.cpp" />
-    <ClCompile Include="Start.cpp" />
-    <ClCompile Include="TitleScene.cpp" />
-    <ClCompile Include="TutorialScene.cpp" />
+    <ClCompile Include="Game\Board.cpp" />
+    <ClCompile Include="Game\CircuitSolver.cpp" />
+    <ClCompile Include="Game\CountDownTimer.cpp" />
+    <ClCompile Include="Game\GameOver.cpp" />
+    <ClCompile Include="Scenes\GameScene.cpp" />
+    <ClCompile Include="Game\Goal.cpp" />
+    <ClCompile Include="App\main.cpp" />
+    <ClCompile Include="Graphics\PipeRenderer.cpp" />
+    <ClCompile Include="Graphics\PipeTransformHelper.cpp" />
+    <ClCompile Include="App\SceneManager.cpp" />
+    <ClCompile Include="Scenes\StageSelectScene.cpp" />
+    <ClCompile Include="Game\Start.cpp" />
+    <ClCompile Include="Scenes\TitleScene.cpp" />
+    <ClCompile Include="Scenes\TutorialScene.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="PipePS.hlsl">
+    <CopyFileToFolders Include="Graphics\PipePS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Develop|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
@@ -179,12 +179,17 @@
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Develop|x64'">true</DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
     </CopyFileToFolders>
-    <Text Include="PipeVS.hlsl">
+    <Text Include="Graphics\PipeVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Develop|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <FileType>Document</FileType>
     </Text>
+    <FxCompile Include="Graphics\GamePipePS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Develop|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Resources\shaders\TerrainPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
@@ -282,20 +287,20 @@
     <None Include="Resources\shaders\Sprite.hlsli" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Board.h" />
-    <ClInclude Include="CircuitSolver.h" />
-    <ClInclude Include="CountDownTimer.h" />
-    <ClInclude Include="GameOver.h" />
-    <ClInclude Include="GameScene.h" />
-    <ClInclude Include="Goal.h" />
-    <ClInclude Include="IScene.h" />
-    <ClInclude Include="PipeRenderer.h" />
-    <ClInclude Include="PipeTransformHelper.h" />
-    <ClInclude Include="SceneManager.h" />
-    <ClInclude Include="StageSelectScene.h" />
-    <ClInclude Include="Start.h" />
-    <ClInclude Include="TitleScene.h" />
-    <ClInclude Include="TutorialScene.h" />
+    <ClInclude Include="Game\Board.h" />
+    <ClInclude Include="Game\CircuitSolver.h" />
+    <ClInclude Include="Game\CountDownTimer.h" />
+    <ClInclude Include="Game\GameOver.h" />
+    <ClInclude Include="Scenes\GameScene.h" />
+    <ClInclude Include="Game\Goal.h" />
+    <ClInclude Include="App\IScene.h" />
+    <ClInclude Include="Graphics\PipeRenderer.h" />
+    <ClInclude Include="Graphics\PipeTransformHelper.h" />
+    <ClInclude Include="App\SceneManager.h" />
+    <ClInclude Include="Scenes\StageSelectScene.h" />
+    <ClInclude Include="Game\Start.h" />
+    <ClInclude Include="Scenes\TitleScene.h" />
+    <ClInclude Include="Scenes\TutorialScene.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

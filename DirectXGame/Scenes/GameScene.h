@@ -1,11 +1,11 @@
 #pragma once
-#include "Board.h"
-#include "CountDownTimer.h"
-#include "GameOver.h"
-#include "Goal.h"
-#include "IScene.h"
-#include "PipeRenderer.h"
-#include "Start.h"
+#include "../App/IScene.h"
+#include "../Game/Board.h"
+#include "../Game/CountDownTimer.h"
+#include "../Game/GameOver.h"
+#include "../Game/Goal.h"
+#include "../Game/Start.h"
+#include "../Graphics/PipeRenderer.h"
 #include <memory>
 #include <vector>
 

@@ -1,6 +1,6 @@
-#include "TutorialScene.h"
-#include "SceneManager.h"
-#include "StageSelectScene.h"
+#include "../Scenes/TutorialScene.h"
+#include "../App/SceneManager.h"
+#include "../Scenes/StageSelectScene.h"
 #include "base/TextureManager.h"
 #include "input/Input.h"
 

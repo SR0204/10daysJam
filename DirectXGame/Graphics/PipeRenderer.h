@@ -1,6 +1,6 @@
 #pragma once
-#include "Board.h"
-#include "PipeTransformHelper.h"
+#include "../Game/Board.h"
+#include "../Graphics/PipeTransformHelper.h"
 #include <DirectXMath.h>
 #include <d3d12.h>
 #include <vector>

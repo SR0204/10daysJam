@@ -1,5 +1,5 @@
 #pragma once
-#include "Board.h"
+#include "../Game/Board.h"
 #include "KamataEngine.h"
 #include <cstdint>
 #include <d3d12.h>

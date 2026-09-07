@@ -1,6 +1,6 @@
 #pragma once
+#include "../Game/Board.h"
 #include "2d/Sprite.h"
-#include "Board.h"
 #include "KamataEngine.h"
 #include <d3d12.h>
 

@@ -56,8 +56,8 @@ void PipeRenderer::Initialize(int boardWidth, int boardHeight) {
 	m_instanceBufferGPUAddress = m_instanceBuffer->GetGPUVirtualAddress();
 
 	Microsoft::WRL::ComPtr<ID3DBlob> vsBlob, psBlob, errorBlob;
-	D3DCompileFromFile(L"PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
-	D3DCompileFromFile(L"PipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
+	D3DCompileFromFile(L"Graphics/PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
+	D3DCompileFromFile(L"Graphics/GamePipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
 
 	// 各テクスチャの読み込み
 	m_texOff[(int)PipeType::I] = TextureManager::Load("Pipe/I_Pipe/I_Pipe_Off.png");

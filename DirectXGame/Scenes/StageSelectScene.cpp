@@ -1,6 +1,6 @@
-#include "StageSelectScene.h"
-#include "GameScene.h"
-#include "SceneManager.h"
+#include "../Scenes/StageSelectScene.h"
+#include "../App/SceneManager.h"
+#include "../Scenes/GameScene.h"
 #include "base/DirectXCommon.h"
 #include "base/TextureManager.h"
 #include "input/Input.h"
@@ -91,8 +91,8 @@ void StageSelectScene::Initialize() {
 	m_instanceBufferGPUAddress = m_instanceBuffer->GetGPUVirtualAddress();
 
 	Microsoft::WRL::ComPtr<ID3DBlob> vsBlob, psBlob, errorBlob;
-	D3DCompileFromFile(L"PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
-	D3DCompileFromFile(L"PipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
+	D3DCompileFromFile(L"Graphics/PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
+	D3DCompileFromFile(L"Graphics/PipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
 
 	// テクスチャ読み込み
 	// m_textureHandleOff = TextureManager::Load("Pipe/I_Pipe/I_Pipe_Off.png");

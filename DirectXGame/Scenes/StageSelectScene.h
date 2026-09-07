@@ -1,7 +1,10 @@
 #pragma once
-#include "Board.h"
-#include "GameScene.h"
-#include "IScene.h"
+#include "../App/IScene.h"
+#include "../Game/Board.h"
+#include "../Graphics/PipeRenderer.h"
+#include "../Scenes/GameScene.h"
+#include "2d/Sprite.h"
+#include "KamataEngine.h"
 #include <DirectXMath.h>
 #include <d3d12.h>
 #include <vector>

@@ -1,8 +1,8 @@
 #include "GameScene.h"
-#include "CircuitSolver.h"
-#include "SceneManager.h"
-#include "StageSelectScene.h"
-#include "TitleScene.h"
+#include "../App/SceneManager.h"
+#include "../Game/CircuitSolver.h"
+#include "../Scenes/StageSelectScene.h"
+#include "../Scenes/TitleScene.h"
 #include "base/WinApp.h"
 #include "input/Input.h"
 #include <algorithm>
