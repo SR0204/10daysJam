@@ -15,9 +15,10 @@ using namespace KamataEngine;
 StageSelectScene::StageSelectScene() : m_board(18, 10) {}
 
 StageSelectScene::~StageSelectScene() {
-	// ★ スプライトの解放
+	// スプライトの解放
 	delete m_spriteNum1;
 	delete m_spriteNum2;
+	delete m_spriteNum3; // ★ 追加
 }
 
 void StageSelectScene::Initialize() {
@@ -95,19 +96,13 @@ void StageSelectScene::Initialize() {
 	D3DCompileFromFile(L"Graphics/PipeVS.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
 	D3DCompileFromFile(L"Graphics/PipePS.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
 
-	// テクスチャ読み込み
-	// m_textureHandleOff = TextureManager::Load("Pipe/I_Pipe/I_Pipe_Off.png");
-	// m_textureHandleOn = TextureManager::Load("Pipe/I_Pipe/I_Pipe_On.png");
-
 	// ルートパラメータの設定 (t0: インスタンス, t1: テクスチャOFF, t2: テクスチャON)
 	D3D12_ROOT_PARAMETER rootParams[3] = {};
 
-	// t0: インスタンスデータ (StructuredBuffer)
 	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParams[0].Descriptor.ShaderRegister = 0;
 	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	// t1: テクスチャOFF (Descriptor Table)
 	D3D12_DESCRIPTOR_RANGE rangeOff = {};
 	rangeOff.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	rangeOff.NumDescriptors = 1;
@@ -118,7 +113,6 @@ void StageSelectScene::Initialize() {
 	rootParams[1].DescriptorTable.pDescriptorRanges = &rangeOff;
 	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	// t2: テクスチャON (Descriptor Table)
 	D3D12_DESCRIPTOR_RANGE rangeOn = {};
 	rangeOn.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	rangeOn.NumDescriptors = 1;
@@ -129,7 +123,6 @@ void StageSelectScene::Initialize() {
 	rootParams[2].DescriptorTable.pDescriptorRanges = &rangeOn;
 	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	// サンプラー設定 (s0)
 	D3D12_STATIC_SAMPLER_DESC sampler = {};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -173,33 +166,37 @@ void StageSelectScene::Initialize() {
 
 	UpdateInstanceBuffers();
 
-	// ★ ステージナンバー画像の読み込みとスプライト作成
+	// ステージナンバー画像の読み込みとスプライト作成
 	m_texNum1 = TextureManager::Load("SelectNumber/SelectNumber_1.png");
 	m_texNum2 = TextureManager::Load("SelectNumber/SelectNumber_2.png");
+	m_texNum3 = TextureManager::Load("SelectNumber/SelectNumber_3.png"); // ★ 追加
 
 	m_spriteNum1 = Sprite::Create(m_texNum1, {0.0f, 0.0f});
 	m_spriteNum2 = Sprite::Create(m_texNum2, {0.0f, 0.0f});
+	m_spriteNum3 = Sprite::Create(m_texNum3, {0.0f, 0.0f}); // ★ 追加
 
-	// ★ 画像のサイズと配置場所の調整
-	if (m_spriteNum1 && m_spriteNum2) {
+	// 画像のサイズと配置場所の調整 (3つ並びに変更)
+	if (m_spriteNum1 && m_spriteNum2 && m_spriteNum3) {
 		float winWidth = static_cast<float>(WinApp::kWindowWidth);
 		float winHeight = static_cast<float>(WinApp::kWindowHeight);
 
-		// 中心軸を中央に設定
 		m_spriteNum1->SetAnchorPoint({0.5f, 0.5f});
 		m_spriteNum2->SetAnchorPoint({0.5f, 0.5f});
+		m_spriteNum3->SetAnchorPoint({0.5f, 0.5f});
 
-		// 左右に並べて表示（間隔も少し調整できます）
-		m_spriteNum1->SetPosition({winWidth * 0.35f, winHeight * 0.5f});
-		m_spriteNum2->SetPosition({winWidth * 0.65f, winHeight * 0.5f});
+		// 画面幅を4等分して「1」「2」「3」を均等に配置
+		m_spriteNum1->SetPosition({winWidth * 0.25f, winHeight * 0.5f});
+		m_spriteNum2->SetPosition({winWidth * 0.50f, winHeight * 0.5f});
+		m_spriteNum3->SetPosition({winWidth * 0.75f, winHeight * 0.5f});
 
-		// ★ サイズを大きく変更（例: 200 -> 360 に拡大）
-		float spriteSize = 360.0f;
+		// 3つ並ぶためサイズを少し調整 (例: 280.0f)
+		float spriteSize = 280.0f;
 		m_spriteNum1->SetSize({spriteSize, spriteSize});
 		m_spriteNum2->SetSize({spriteSize, spriteSize});
+		m_spriteNum3->SetSize({spriteSize, spriteSize});
 	}
 
-	// ★ BGMの読み込みとループ再生（音源ファイルのパスを指定してください）
+	// BGMの読み込みとループ再生
 	m_bgmHandle = Audio::GetInstance()->LoadWave("BGM/StageSelectSceneBGM.wav");
 	m_playHandle = Audio::GetInstance()->PlayWave(m_bgmHandle, true, 0.5f);
 }
@@ -207,19 +204,23 @@ void StageSelectScene::Initialize() {
 void StageSelectScene::Update(float /*deltaTime*/) {
 	auto input = Input::GetInstance();
 
-	// [1] キー：EASY（10x6 の小さめマップ）
+	// [1] キー：EASY（10x6）
 	if (input->PushKey(DIK_1)) {
-		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
 		Audio::GetInstance()->StopWave(m_playHandle);
 		Audio::GetInstance()->StopWave(m_bgmHandle);
 		m_sceneManager->ChangeScene(std::make_unique<GameScene>(10, 6));
 	}
-	// [2] キー：NORMAL（18x10 の画面ピッタリ全画面マップ）
+	// [2] キー：NORMAL（18x10）
 	else if (input->PushKey(DIK_2)) {
-		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
 		Audio::GetInstance()->StopWave(m_playHandle);
 		Audio::GetInstance()->StopWave(m_bgmHandle);
 		m_sceneManager->ChangeScene(std::make_unique<GameScene>(18, 10));
+	}
+	// ★ [3] キー：HARD（32x18 - 16:9 ピッタリ高難易度）
+	else if (input->PushKey(DIK_3)) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+		Audio::GetInstance()->StopWave(m_bgmHandle);
+		m_sceneManager->ChangeScene(std::make_unique<GameScene>(32, 18));
 	}
 }
 
@@ -231,15 +232,11 @@ void StageSelectScene::UpdateInstanceBuffers() {
 	float winHeight = static_cast<float>(WinApp::kWindowHeight); // 720.0f
 	float aspectRatio = winWidth / winHeight;                    // 16:9 (約1.777f)
 
-	// ★ 1. 縦幅いっぱいに収まるベースのマスサイズ（NDC座標系は高さ全域で 2.0f）
 	float tileSizeY = 2.0f / static_cast<float>(m_board.GetHeight());
-	// ★ 正方形にするため、X方向のスケールにはアスペクト比で割った値を適用
 	float tileSizeX = tileSizeY / aspectRatio;
 
-	// ★ 2. 盤面全体の幅と高さ（NDC座標）
 	float totalWidthNDC = tileSizeX * static_cast<float>(m_board.GetWidth());
 
-	// ★ 3. 盤面を画面中央に配置するための開始オフセット（左上座標）
 	float startX = -totalWidthNDC * 0.5f + (tileSizeX * 0.5f);
 	float startY = 1.0f - (tileSizeY * 0.5f);
 
@@ -251,7 +248,6 @@ void StageSelectScene::UpdateInstanceBuffers() {
 			float posX = startX + (x * tileSizeX);
 			float posY = startY - (y * tileSizeY);
 
-			// スケールと並進の行列作成（マスが歪まないよう正方形描画）
 			XMMATRIX matScale = XMMatrixScaling(tileSizeX, tileSizeY, 1.0f);
 			XMMATRIX matTrans = XMMatrixTranslation(posX, posY, 0.0f);
 			XMMATRIX matWorld = matScale * matTrans;
@@ -287,17 +283,12 @@ void StageSelectScene::Render(ID3D12GraphicsCommandList* commandList) {
 		commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 		commandList->IASetIndexBuffer(&m_indexBufferView);
 
-		// t0: インスタンスバッファ
 		commandList->SetGraphicsRootShaderResourceView(0, m_instanceBufferGPUAddress);
-
-		// t1, t2: テクスチャデスクリプタテーブルのセット
-		// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 1, m_textureHandleOff);
-		// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, m_textureHandleOn);
 
 		commandList->DrawIndexedInstanced(6, static_cast<UINT>(m_instanceData.size()), 0, 0, 0);
 	}
 
-	// ★ 2. ステージナンバー画像（スプライト）の描画処理
+	// 2. ステージナンバー画像（スプライト）の描画処理
 	Sprite::PreDraw(commandList);
 
 	if (m_spriteNum1) {
@@ -305,6 +296,9 @@ void StageSelectScene::Render(ID3D12GraphicsCommandList* commandList) {
 	}
 	if (m_spriteNum2) {
 		m_spriteNum2->Draw();
+	}
+	if (m_spriteNum3) { // ★ 追加
+		m_spriteNum3->Draw();
 	}
 
 	Sprite::PostDraw();

@@ -9,8 +9,8 @@ public:
 	CountDownTimer() = default;
 	~CountDownTimer();
 
-	// 初期化（引数で制限時間を秒単位で指定。デフォルト180秒＝3分）
-	void Initialize(float limitTimeSeconds = 180.0f);
+	// 初期化
+	void Initialize(int boardWidth);
 
 	// 更新処理
 	void Update(float deltaTime);

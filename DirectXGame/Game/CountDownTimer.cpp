@@ -16,8 +16,17 @@ CountDownTimer::~CountDownTimer() {
 	delete m_spriteSec1;
 }
 
-void CountDownTimer::Initialize(float limitTimeSeconds) {
-	m_timeRemaining = limitTimeSeconds;
+// Initialize の引数を (float limitTimeSeconds) から (int boardWidth) に変更
+void CountDownTimer::Initialize(int boardWidth) {
+	// ★ マス数（横幅）に応じて制限時間を自動切り替え
+	if (boardWidth == 10) {
+		m_timeRemaining = 60.0f; // EASY (10x6): 1分30秒
+	} else if (boardWidth == 32) {
+		m_timeRemaining = 240.0f; // HARD (32x18): 4分00秒
+	} else {
+		m_timeRemaining = 180.0f; // NORMAL (18x10 など): 3分00秒
+	}
+
 	m_isFinished = false;
 
 	// 数字テクスチャのロード (0~9)
@@ -39,7 +48,6 @@ void CountDownTimer::Initialize(float limitTimeSeconds) {
 	m_spriteSec10->SetAnchorPoint({0.5f, 0.5f});
 	m_spriteSec1->SetAnchorPoint({0.5f, 0.5f});
 
-	// ★ XMFLOAT2 から Vector2 に変更（または直接 {} で渡す）
 	KamataEngine::Vector2 numSize = {40.0f, 50.0f};
 
 	m_spriteMin->SetSize(numSize);

@@ -31,8 +31,10 @@ private:
 	// ★ 数字表示用のスプライト変数
 	uint32_t m_texNum1 = 0;
 	uint32_t m_texNum2 = 0;
+	uint32_t m_texNum3 = 0;
 	KamataEngine::Sprite* m_spriteNum1 = nullptr;
 	KamataEngine::Sprite* m_spriteNum2 = nullptr;
+	KamataEngine::Sprite* m_spriteNum3 = nullptr;
 
 	// ★ BGM用の変数
 	uint32_t m_bgmHandle = 0;

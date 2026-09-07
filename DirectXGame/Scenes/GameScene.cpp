@@ -15,9 +15,7 @@ using namespace KamataEngine;
 GameScene::GameScene(int boardWidth, int boardHeight)
     : m_board(boardWidth, boardHeight), m_stageWidth(boardWidth), m_stageHeight(boardHeight), m_startX(0), m_startY(0), m_goalX(boardWidth - 1), m_goalY(boardHeight - 1) {}
 
-GameScene::~GameScene() {
-	delete m_bgSprite;
-}
+GameScene::~GameScene() { delete m_bgSprite; }
 
 void GameScene::Initialize() {
 	// ★ BGMの読み込みとループ再生
@@ -80,9 +78,9 @@ void GameScene::Initialize() {
 
 	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
 
-	// 3分（180秒）でタイマーを初期化
+	// 盤面の横幅を渡して難易度別の制限時間でタイマーを初期化
 	m_timer = std::make_unique<CountDownTimer>();
-	m_timer->Initialize(60.0f);
+	m_timer->Initialize(m_board.GetWidth());
 
 	// ゲームオーバー初期化+作成
 	m_gameOver = std::make_unique<GameOver>();
