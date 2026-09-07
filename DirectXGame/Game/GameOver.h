@@ -26,6 +26,8 @@ public:
 
 	void PlayBGM();
 
+	void StopBGM();
+
 private:
 	uint32_t m_texGameOver = 0;
 	KamataEngine::Sprite* m_spriteGameOver = nullptr;

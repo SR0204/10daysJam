@@ -8,6 +8,7 @@ using namespace KamataEngine;
 
 GameClear::~GameClear() {
 	delete m_spriteClear;
+	StopBGM();
 }
 
 void GameClear::Initialize() {
@@ -69,5 +70,12 @@ void GameClear::PlayBGM() {
 	// まだ再生されていなければ再生
 	if (m_playHandle == 0 && m_bgmHandle != 0) {
 		m_playHandle = Audio::GetInstance()->PlayWave(m_bgmHandle, true, 0.5f);
+	}
+}
+
+void GameClear::StopBGM() {
+	if (m_playHandle != 0) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+		m_playHandle = 0;
 	}
 }

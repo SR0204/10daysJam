@@ -8,6 +8,7 @@ using namespace KamataEngine;
 
 GameOver::~GameOver() {
 	delete m_spriteGameOver;
+	StopBGM();
 }
 
 void GameOver::Initialize() {
@@ -62,5 +63,12 @@ void GameOver::PlayBGM() {
 	// まだ再生されていなければ再生
 	if (m_playHandle == 0 && m_bgmHandle != 0) {
 		m_playHandle = Audio::GetInstance()->PlayWave(m_bgmHandle, true, 0.5f);
+	}
+}
+
+void GameOver::StopBGM() {
+	if (m_playHandle != 0) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+		m_playHandle = 0;
 	}
 }

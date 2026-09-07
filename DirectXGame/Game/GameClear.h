@@ -19,6 +19,7 @@ public:
 	GameClearResult Update();
 	void Draw();
 	void PlayBGM();
+	void StopBGM();
 
 private:
 	uint32_t m_texClear = 0;

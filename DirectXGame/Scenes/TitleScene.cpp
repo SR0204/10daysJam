@@ -13,10 +13,9 @@ TitleScene::TitleScene() : m_board(1, 1) {}
 TitleScene::~TitleScene() { delete m_titleSprite; }
 
 void TitleScene::Initialize() {
-	// タイトル画像の読み込み
+	// 1. タイトル画像の読み込みとスプライト生成
 	m_textureHandleOn = TextureManager::Load("Title/Title.png");
 
-	// 1280x720 の全画面スプライトを作成
 	m_titleSprite = Sprite::Create(m_textureHandleOn, {0.0f, 0.0f});
 	if (m_titleSprite) {
 		float winWidth = static_cast<float>(WinApp::kWindowWidth);   // 1280
@@ -24,7 +23,12 @@ void TitleScene::Initialize() {
 		m_titleSprite->SetSize({winWidth, winHeight});
 	}
 
-	// ★ BGMの読み込みとループ再生（音源ファイルのパスを指定してください）
+	// ★ 2. 前回の再生が残っている場合は確実に一度止めてから新規再生する
+	if (m_playHandle != 0) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+		m_playHandle = 0;
+	}
+
 	m_bgmHandle = Audio::GetInstance()->LoadWave("BGM/TitleBGM.wav");
 	m_playHandle = Audio::GetInstance()->PlayWave(m_bgmHandle, true, 0.5f);
 }
@@ -34,7 +38,17 @@ void TitleScene::Update(float deltaTime) {
 
 	// SPACE キーでチュートリアルへ遷移
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		m_sceneManager->ChangeScene(std::make_unique<TutorialScene>());
+		// 1. チュートリアルシーンのインスタンスを生成
+		auto tutorialScene = std::make_unique<TutorialScene>();
+
+		// 2. ★ 再生中のBGMハンドルを渡す（ここが抜けていると止まりません）
+		tutorialScene->SetBgmHandle(m_playHandle);
+
+		// 3. タイトル側の二重停止を防ぐため0クリア
+		m_playHandle = 0;
+
+		// 4. シーン切り替え
+		m_sceneManager->ChangeScene(std::move(tutorialScene));
 	}
 }
 
@@ -42,7 +56,6 @@ void TitleScene::Render(ID3D12GraphicsCommandList* commandList) {
 	if (!commandList)
 		return;
 
-	// スプライト描画
 	Sprite::PreDraw(commandList);
 	if (m_titleSprite) {
 		m_titleSprite->Draw();

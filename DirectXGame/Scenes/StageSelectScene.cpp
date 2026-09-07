@@ -15,10 +15,16 @@ using namespace KamataEngine;
 StageSelectScene::StageSelectScene() : m_board(18, 10) {}
 
 StageSelectScene::~StageSelectScene() {
+	// ★ シーン破棄時にBGMを確実に停止
+	if (m_playHandle != 0) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+		m_playHandle = 0;
+	}
+
 	// スプライトの解放
 	delete m_spriteNum1;
 	delete m_spriteNum2;
-	delete m_spriteNum3; // ★ 追加
+	delete m_spriteNum3;
 }
 
 void StageSelectScene::Initialize() {
@@ -169,11 +175,11 @@ void StageSelectScene::Initialize() {
 	// ステージナンバー画像の読み込みとスプライト作成
 	m_texNum1 = TextureManager::Load("SelectNumber/SelectNumber_1.png");
 	m_texNum2 = TextureManager::Load("SelectNumber/SelectNumber_2.png");
-	m_texNum3 = TextureManager::Load("SelectNumber/SelectNumber_3.png"); // ★ 追加
+	m_texNum3 = TextureManager::Load("SelectNumber/SelectNumber_3.png");
 
 	m_spriteNum1 = Sprite::Create(m_texNum1, {0.0f, 0.0f});
 	m_spriteNum2 = Sprite::Create(m_texNum2, {0.0f, 0.0f});
-	m_spriteNum3 = Sprite::Create(m_texNum3, {0.0f, 0.0f}); // ★ 追加
+	m_spriteNum3 = Sprite::Create(m_texNum3, {0.0f, 0.0f});
 
 	// 画像のサイズと配置場所の調整 (3つ並びに変更)
 	if (m_spriteNum1 && m_spriteNum2 && m_spriteNum3) {
@@ -184,16 +190,20 @@ void StageSelectScene::Initialize() {
 		m_spriteNum2->SetAnchorPoint({0.5f, 0.5f});
 		m_spriteNum3->SetAnchorPoint({0.5f, 0.5f});
 
-		// 画面幅を4等分して「1」「2」「3」を均等に配置
 		m_spriteNum1->SetPosition({winWidth * 0.25f, winHeight * 0.5f});
 		m_spriteNum2->SetPosition({winWidth * 0.50f, winHeight * 0.5f});
 		m_spriteNum3->SetPosition({winWidth * 0.75f, winHeight * 0.5f});
 
-		// 3つ並ぶためサイズを少し調整 (例: 280.0f)
 		float spriteSize = 280.0f;
 		m_spriteNum1->SetSize({spriteSize, spriteSize});
 		m_spriteNum2->SetSize({spriteSize, spriteSize});
 		m_spriteNum3->SetSize({spriteSize, spriteSize});
+	}
+
+	// ★ 以前の再生が残っている場合は確実に一度停止する
+	if (m_playHandle != 0) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+		m_playHandle = 0;
 	}
 
 	// BGMの読み込みとループ再生
@@ -204,22 +214,24 @@ void StageSelectScene::Initialize() {
 void StageSelectScene::Update(float /*deltaTime*/) {
 	auto input = Input::GetInstance();
 
-	// [1] キー：EASY（10x6）
-	if (input->PushKey(DIK_1)) {
-		Audio::GetInstance()->StopWave(m_playHandle);
-		Audio::GetInstance()->StopWave(m_bgmHandle);
+	// ★ PushKey から TriggerKey に変更（押しっぱなし判定によるバグを防止）
+	if (input->TriggerKey(DIK_1)) {
+		if (m_playHandle != 0) {
+			Audio::GetInstance()->StopWave(m_playHandle);
+			m_playHandle = 0;
+		}
 		m_sceneManager->ChangeScene(std::make_unique<GameScene>(10, 6));
-	}
-	// [2] キー：NORMAL（18x10）
-	else if (input->PushKey(DIK_2)) {
-		Audio::GetInstance()->StopWave(m_playHandle);
-		Audio::GetInstance()->StopWave(m_bgmHandle);
+	} else if (input->TriggerKey(DIK_2)) {
+		if (m_playHandle != 0) {
+			Audio::GetInstance()->StopWave(m_playHandle);
+			m_playHandle = 0;
+		}
 		m_sceneManager->ChangeScene(std::make_unique<GameScene>(18, 10));
-	}
-	// ★ [3] キー：HARD（32x18 - 16:9 ピッタリ高難易度）
-	else if (input->PushKey(DIK_3)) {
-		Audio::GetInstance()->StopWave(m_playHandle);
-		Audio::GetInstance()->StopWave(m_bgmHandle);
+	} else if (input->TriggerKey(DIK_3)) {
+		if (m_playHandle != 0) {
+			Audio::GetInstance()->StopWave(m_playHandle);
+			m_playHandle = 0;
+		}
 		m_sceneManager->ChangeScene(std::make_unique<GameScene>(32, 18));
 	}
 }
@@ -230,7 +242,7 @@ void StageSelectScene::UpdateInstanceBuffers() {
 
 	float winWidth = static_cast<float>(WinApp::kWindowWidth);   // 1280.0f
 	float winHeight = static_cast<float>(WinApp::kWindowHeight); // 720.0f
-	float aspectRatio = winWidth / winHeight;                    // 16:9 (約1.777f)
+	float aspectRatio = winWidth / winHeight;                    // 16:9
 
 	float tileSizeY = 2.0f / static_cast<float>(m_board.GetHeight());
 	float tileSizeX = tileSizeY / aspectRatio;
@@ -274,7 +286,6 @@ void StageSelectScene::Render(ID3D12GraphicsCommandList* commandList) {
 	if (!commandList)
 		return;
 
-	// 1. パイプ盤面（背景）の描画
 	if (!m_instanceData.empty()) {
 		commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 		commandList->SetPipelineState(m_pipelineState.Get());
@@ -288,7 +299,6 @@ void StageSelectScene::Render(ID3D12GraphicsCommandList* commandList) {
 		commandList->DrawIndexedInstanced(6, static_cast<UINT>(m_instanceData.size()), 0, 0, 0);
 	}
 
-	// 2. ステージナンバー画像（スプライト）の描画処理
 	Sprite::PreDraw(commandList);
 
 	if (m_spriteNum1) {
@@ -297,7 +307,7 @@ void StageSelectScene::Render(ID3D12GraphicsCommandList* commandList) {
 	if (m_spriteNum2) {
 		m_spriteNum2->Draw();
 	}
-	if (m_spriteNum3) { // ★ 追加
+	if (m_spriteNum3) {
 		m_spriteNum3->Draw();
 	}
 

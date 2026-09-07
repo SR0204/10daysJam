@@ -111,24 +111,29 @@ void GameScene::Update(float deltaTime) {
 	// 3. 描画バッファの更新
 	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
 
-	// ★ 4. クリア時のリザルト処理（GameClearクラスに任せる）
+	// 4. クリア時のリザルト処理
 	if (m_goal.IsReached()) {
-		// クリアした最初の1フレームだけPlayBGMを止めてクリアBGMを再生
 		if (!m_isClearBgmPlayed) {
-			Audio::GetInstance()->StopWave(m_playHandle);
+			if (m_playHandle != 0) {
+				Audio::GetInstance()->StopWave(m_playHandle);
+				m_playHandle = 0;
+			}
 			m_gameClear->PlayBGM();
 			m_isClearBgmPlayed = true;
 		}
 
 		GameClearResult result = m_gameClear->Update();
 		if (result == GameClearResult::Retry) {
+			m_gameClear->StopBGM();
 			m_sceneManager->ChangeScene(std::make_unique<GameScene>(m_board.GetWidth(), m_board.GetHeight()));
 		} else if (result == GameClearResult::StageSelect) {
+			m_gameClear->StopBGM();
 			m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
 		} else if (result == GameClearResult::Title) {
+			m_gameClear->StopBGM();
 			m_sceneManager->ChangeScene(std::make_unique<TitleScene>());
 		}
-		return; // クリア時は以降の回転やタイマー更新をストップ
+		return;
 	}
 
 	// 5. 通常時の入力処理（クリックでパイプ回転）
@@ -149,10 +154,13 @@ void GameScene::Update(float deltaTime) {
 		GameOverResult result = m_gameOver->Update();
 
 		if (result == GameOverResult::Retry) {
+			m_gameOver->StopBGM();
 			m_sceneManager->ChangeScene(std::make_unique<GameScene>(m_stageWidth, m_stageHeight));
 		} else if (result == GameOverResult::StageSelect) {
+			m_gameOver->StopBGM();
 			m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
 		} else if (result == GameOverResult::Title) {
+			m_gameOver->StopBGM();
 			m_sceneManager->ChangeScene(std::make_unique<TitleScene>());
 		}
 		return;
@@ -160,11 +168,15 @@ void GameScene::Update(float deltaTime) {
 
 	// タイマー更新
 	m_timer->Update(deltaTime);
+
+	// 7. タイムアップ処理
 	if (m_timer->IsFinished() && !m_isGameOver) {
 		m_isGameOver = true; // タイムアップ
 
-		// GameScene の BGM を停止して GameOver の BGM を再生
-		Audio::GetInstance()->StopWave(m_playHandle);
+		if (m_playHandle != 0) {
+			Audio::GetInstance()->StopWave(m_playHandle);
+			m_playHandle = 0;
+		}
 		m_gameOver->PlayBGM();
 	}
 }

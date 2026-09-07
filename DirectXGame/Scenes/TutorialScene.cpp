@@ -10,12 +10,15 @@ using namespace KamataEngine;
 TutorialScene::TutorialScene() {}
 
 TutorialScene::~TutorialScene() {
-
 	delete m_guideSprite;
 
-	// シーン切り替え時にBGMを停止
+	// ★ 変数の値に関係なく TitleBGM を直接狙い撃ちで強制停止！
+	uint32_t titleBgm = Audio::GetInstance()->LoadWave("BGM/TitleBGM.wav");
+	Audio::GetInstance()->StopWave(titleBgm);
+
 	if (m_playHandle != 0) {
 		Audio::GetInstance()->StopWave(m_playHandle);
+		m_playHandle = 0;
 	}
 }
 
@@ -30,9 +33,15 @@ void TutorialScene::Update(float deltaTime) {
 
 	// SPACEキーが押されたらステージセレクトへ移動
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
-		Audio::GetInstance()->StopWave(m_playHandle);
-		Audio::GetInstance()->StopWave(m_bgmHandle);
+		// ★ ここでも TitleBGM を直接指定して確実に止める！
+		uint32_t titleBgm = Audio::GetInstance()->LoadWave("BGM/TitleBGM.wav");
+		Audio::GetInstance()->StopWave(titleBgm);
+
+		if (m_playHandle != 0) {
+			Audio::GetInstance()->StopWave(m_playHandle);
+			m_playHandle = 0;
+		}
+
 		m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
 	}
 }
