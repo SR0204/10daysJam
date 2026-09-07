@@ -8,6 +8,7 @@
 #include <cassert>
 #include <d3dcompiler.h>
 #include <d3dx12.h>
+#include "TutorialScene.h"
 
 using namespace DirectX;
 using namespace KamataEngine;
@@ -137,7 +138,7 @@ void TitleScene::Update(float deltaTime) {
 
 	// SPACE キーでステージセレクトへ遷移
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
+		m_sceneManager->ChangeScene(std::make_unique<TutorialScene>());
 	}
 }
 

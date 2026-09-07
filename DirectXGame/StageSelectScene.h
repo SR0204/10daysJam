@@ -25,9 +25,15 @@ private:
 
 	void UpdateInstanceBuffers();
 
+	// ★ 数字表示用のスプライト変数
+	uint32_t m_texNum1 = 0;
+	uint32_t m_texNum2 = 0;
+	KamataEngine::Sprite* m_spriteNum1 = nullptr;
+	KamataEngine::Sprite* m_spriteNum2 = nullptr;
+
 public:
 	StageSelectScene();
-	~StageSelectScene() override = default;
+	~StageSelectScene();
 
 	void Initialize() override;
 	void Update(float deltaTime) override;

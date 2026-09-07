@@ -11,7 +11,10 @@
 
 using namespace KamataEngine;
 
-GameScene::GameScene(int boardWidth, int boardHeight) : m_board(boardWidth, boardHeight), m_startX(0), m_startY(0), m_goalX(boardWidth - 1), m_goalY(boardHeight - 1) {}
+GameScene::GameScene(int boardWidth, int boardHeight)
+    : m_board(boardWidth, boardHeight), m_stageWidth(boardWidth), m_stageHeight(boardHeight), m_startX(0), m_startY(0), m_goalX(boardWidth - 1), m_goalY(boardHeight - 1) {}
+
+GameScene::~GameScene() { delete m_clearSprite; }
 
 void GameScene::Initialize() {
 	// 1. スタートとゴールの初期化
@@ -62,6 +65,18 @@ void GameScene::Initialize() {
 
 	// ★ 9. スタートマスの確定状態を描画バッファへ反映
 	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
+
+	// ★ クリア画像のスプライト作成
+	m_clearTexture = TextureManager::Load("Clear/Clear.png"); // ※画像のパスに合わせて調整してください
+	m_clearSprite = Sprite::Create(m_clearTexture, {0.0f, 0.0f});
+
+	// 3分（180秒）でタイマーを初期化
+	m_timer = std::make_unique<CountDownTimer>();
+	m_timer->Initialize(60.0f);
+
+	// ゲームオーバー初期化+作成
+	m_gameOver = std::make_unique<GameOver>();
+	m_gameOver->Initialize();
 }
 
 void GameScene::Update(float deltaTime) {
@@ -78,23 +93,32 @@ void GameScene::Update(float deltaTime) {
 		}
 	}
 
-	// 2. ゴール状態の更新（タイマー等の進行）
+	// 2. ゴール状態の更新
 	m_goal.Update(m_board, deltaTime);
 
 	// 3. 描画バッファの更新
 	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
 
-	// 4. クリア時の処理
+	// 4. クリア時のリザルト処理（Clear.png 表示中のキー操作）
 	if (m_goal.IsReached()) {
-		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+		Input* input = Input::GetInstance();
+
+		// Rキー：リスタート（同じサイズでステージを再生成）
+		if (input->TriggerKey(DIK_R)) {
+			m_sceneManager->ChangeScene(std::make_unique<GameScene>(m_board.GetWidth(), m_board.GetHeight()));
+			return;
+		}
+		// Tキー：タイトル画面へ遷移
+		if (input->TriggerKey(DIK_T)) {
 			m_sceneManager->ChangeScene(std::make_unique<TitleScene>());
 			return;
 		}
+
 		// クリア時は以降の操作（回転）を受け付けない
 		return;
 	}
 
-	// 5. 通常時の入力処理
+	// 5. 通常時の入力処理（クリックでパイプ回転）
 	Input* input = Input::GetInstance();
 	if (input->IsTriggerMouse(0)) {
 		POINT mousePos;
@@ -105,6 +129,29 @@ void GameScene::Update(float deltaTime) {
 		RECT clientRect;
 		GetClientRect(hwnd, &clientRect);
 		OnMouseDown(mousePos.x, mousePos.y, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+	}
+
+	// ★ ゲームオーバー中の処理
+	if (m_isGameOver) {
+		GameOverResult result = m_gameOver->Update();
+
+		if (result == GameOverResult::Retry) {
+			// 同じステージサイズでリスタート
+			m_sceneManager->ChangeScene(std::make_unique<GameScene>(m_stageWidth, m_stageHeight));
+		} else if (result == GameOverResult::StageSelect) {
+			// ステージセレクトへ遷移
+			m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
+		} else if (result == GameOverResult::Title) {
+			// ★ タイトル画面へ遷移
+			m_sceneManager->ChangeScene(std::make_unique<TitleScene>());
+		}
+		return; // パズル操作やタイマーをストップ
+	}
+
+	// タイマー更新
+	m_timer->Update(deltaTime);
+	if (m_timer->IsFinished()) {
+		m_isGameOver = true; // タイムアップでゲームオーバーへ
 	}
 }
 
@@ -155,12 +202,30 @@ void GameScene::RefreshCircuit() {
 }
 
 void GameScene::Render(ID3D12GraphicsCommandList* commandList) {
-	// 1. パイプ盤面の描画
+	// 1. パイプ・スタート・ゴールの描画（3D/背景）
 	m_renderer.Render(commandList);
-
-	// 2. スタートとゴールの描画
 	m_start.Render(commandList);
 	m_goal.Render(commandList);
+
+	// 2. UI・スプライト描画（まとめて1回の PreDraw/PostDraw で描画）
+	Sprite::PreDraw(commandList);
+
+	// クリア画像
+	if (m_goal.IsReached() && m_clearSprite) {
+		m_clearSprite->Draw();
+	}
+
+	// タイマー
+	if (m_timer) {
+		m_timer->Draw();
+	}
+
+	// ゲームオーバー
+	if (m_isGameOver && m_gameOver) {
+		m_gameOver->Draw();
+	}
+
+	Sprite::PostDraw();
 }
 
 void GameScene::GenerateStage() {

@@ -13,6 +13,12 @@ using namespace KamataEngine;
 
 StageSelectScene::StageSelectScene() : m_board(18, 10) {}
 
+StageSelectScene::~StageSelectScene() {
+	// ★ スプライトの解放
+	delete m_spriteNum1;
+	delete m_spriteNum2;
+}
+
 void StageSelectScene::Initialize() {
 	// 18x10 のグリッド上に「1」と「2」を描画するドット配列 (1: ON, 0: OFF)
 	const int fontMap[10][18] = {
@@ -165,6 +171,32 @@ void StageSelectScene::Initialize() {
 	device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 
 	UpdateInstanceBuffers();
+
+	// ★ ステージナンバー画像の読み込みとスプライト作成
+	m_texNum1 = TextureManager::Load("SelectNumber/SelectNumber_1.png");
+	m_texNum2 = TextureManager::Load("SelectNumber/SelectNumber_2.png");
+
+	m_spriteNum1 = Sprite::Create(m_texNum1, {0.0f, 0.0f});
+	m_spriteNum2 = Sprite::Create(m_texNum2, {0.0f, 0.0f});
+
+	// ★ 画像のサイズと配置場所の調整
+	if (m_spriteNum1 && m_spriteNum2) {
+		float winWidth = static_cast<float>(WinApp::kWindowWidth);
+		float winHeight = static_cast<float>(WinApp::kWindowHeight);
+
+		// 中心軸を中央に設定
+		m_spriteNum1->SetAnchorPoint({0.5f, 0.5f});
+		m_spriteNum2->SetAnchorPoint({0.5f, 0.5f});
+
+		// 左右に並べて表示（間隔も少し調整できます）
+		m_spriteNum1->SetPosition({winWidth * 0.35f, winHeight * 0.5f});
+		m_spriteNum2->SetPosition({winWidth * 0.65f, winHeight * 0.5f});
+
+		// ★ サイズを大きく変更（例: 200 -> 360 に拡大）
+		float spriteSize = 360.0f;
+		m_spriteNum1->SetSize({spriteSize, spriteSize});
+		m_spriteNum2->SetSize({spriteSize, spriteSize});
+	}
 }
 
 void StageSelectScene::Update(float /*deltaTime*/) {
@@ -223,22 +255,37 @@ void StageSelectScene::UpdateInstanceBuffers() {
 }
 
 void StageSelectScene::Render(ID3D12GraphicsCommandList* commandList) {
-	if (!commandList || m_instanceData.empty())
+	if (!commandList)
 		return;
 
-	commandList->SetGraphicsRootSignature(m_rootSignature.Get());
-	commandList->SetPipelineState(m_pipelineState.Get());
-	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	// 1. パイプ盤面（背景）の描画
+	if (!m_instanceData.empty()) {
+		commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+		commandList->SetPipelineState(m_pipelineState.Get());
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	commandList->IASetIndexBuffer(&m_indexBufferView);
+		commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+		commandList->IASetIndexBuffer(&m_indexBufferView);
 
-	// t0: インスタンスバッファ
-	commandList->SetGraphicsRootShaderResourceView(0, m_instanceBufferGPUAddress);
+		// t0: インスタンスバッファ
+		commandList->SetGraphicsRootShaderResourceView(0, m_instanceBufferGPUAddress);
 
-	// t1, t2: テクスチャデスクリプタテーブルのセット
-	// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 1, m_textureHandleOff);
-	// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, m_textureHandleOn);
+		// t1, t2: テクスチャデスクリプタテーブルのセット
+		// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 1, m_textureHandleOff);
+		// TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, m_textureHandleOn);
 
-	commandList->DrawIndexedInstanced(6, static_cast<UINT>(m_instanceData.size()), 0, 0, 0);
+		commandList->DrawIndexedInstanced(6, static_cast<UINT>(m_instanceData.size()), 0, 0, 0);
+	}
+
+	// ★ 2. ステージナンバー画像（スプライト）の描画処理
+	Sprite::PreDraw(commandList);
+
+	if (m_spriteNum1) {
+		m_spriteNum1->Draw();
+	}
+	if (m_spriteNum2) {
+		m_spriteNum2->Draw();
+	}
+
+	Sprite::PostDraw();
 }
