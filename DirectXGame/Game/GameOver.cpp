@@ -1,13 +1,21 @@
 #include "GameOver.h"
+#include "audio/Audio.h"
 #include "base/TextureManager.h"
 #include "base/WinApp.h"
 #include "input/Input.h"
 
 using namespace KamataEngine;
 
-GameOver::~GameOver() { delete m_spriteGameOver; }
+GameOver::~GameOver() {
+	delete m_spriteGameOver;
+	// シーン切り替え時にBGMを停止
+	if (m_playHandle != 0) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+	}
+}
 
 void GameOver::Initialize() {
+
 	// 画像の読み込み ※画像パスは実際の格納場所に合わせて変更してください
 	m_texGameOver = TextureManager::Load("GameOver/GameOver.png");
 
@@ -22,6 +30,9 @@ void GameOver::Initialize() {
 		m_spriteGameOver->SetPosition({winWidth * 0.5f, winHeight * 0.5f});
 		m_spriteGameOver->SetSize({1280.0f, 720.0f});
 	}
+
+	// ★ BGMの読み込みとループ再生（音源ファイルのパスを指定してください）
+	m_bgmHandle = Audio::GetInstance()->LoadWave("BGM/GameOverBGM.wav");
 }
 
 GameOverResult GameOver::Update() {
@@ -48,5 +59,12 @@ GameOverResult GameOver::Update() {
 void GameOver::Draw() {
 	if (m_spriteGameOver) {
 		m_spriteGameOver->Draw();
+	}
+}
+
+void GameOver::PlayBGM() {
+	// まだ再生されていなければ再生
+	if (m_playHandle == 0 && m_bgmHandle != 0) {
+		m_playHandle = Audio::GetInstance()->PlayWave(m_bgmHandle, true, 0.5f);
 	}
 }

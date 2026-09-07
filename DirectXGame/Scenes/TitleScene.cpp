@@ -1,6 +1,7 @@
 #include "../Scenes/TitleScene.h"
 #include "../App/SceneManager.h"
 #include "../Scenes/TutorialScene.h"
+#include "audio/Audio.h"
 #include "base/TextureManager.h"
 #include "base/WinApp.h"
 #include "input/Input.h"
@@ -22,6 +23,10 @@ void TitleScene::Initialize() {
 		float winHeight = static_cast<float>(WinApp::kWindowHeight); // 720
 		m_titleSprite->SetSize({winWidth, winHeight});
 	}
+
+	// ★ BGMの読み込みとループ再生（音源ファイルのパスを指定してください）
+	m_bgmHandle = Audio::GetInstance()->LoadWave("BGM/TitleBGM.wav");
+	m_playHandle = Audio::GetInstance()->PlayWave(m_bgmHandle, true, 0.5f);
 }
 
 void TitleScene::Update(float deltaTime) {

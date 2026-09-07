@@ -24,7 +24,13 @@ public:
 	// 描画処理
 	void Draw();
 
+	void PlayBGM();
+
 private:
 	uint32_t m_texGameOver = 0;
 	KamataEngine::Sprite* m_spriteGameOver = nullptr;
+
+	// ★ BGM用
+	uint32_t m_bgmHandle = 0;
+	uint32_t m_playHandle = 0;
 };

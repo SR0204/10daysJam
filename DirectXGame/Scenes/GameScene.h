@@ -2,6 +2,7 @@
 #include "../App/IScene.h"
 #include "../Game/Board.h"
 #include "../Game/CountDownTimer.h"
+#include "../Game/GameClear.h"
 #include "../Game/GameOver.h"
 #include "../Game/Goal.h"
 #include "../Game/Start.h"
@@ -24,8 +25,9 @@ private:
 	Goal m_goal;
 	Start m_start;
 
-	uint32_t m_clearTexture = 0;
-	KamataEngine::Sprite* m_clearSprite = nullptr;
+	// ★ GameClear クラスへ移行したため、単体スプライト変数は削除
+	std::unique_ptr<GameClear> m_gameClear;
+	bool m_isClearBgmPlayed = false; // ★ クリアBGMの二重再生防止用
 
 	std::unique_ptr<CountDownTimer> m_timer;
 
@@ -38,6 +40,10 @@ private:
 	// 背景画像用
 	uint32_t m_bgTexture = 0;
 	KamataEngine::Sprite* m_bgSprite = nullptr;
+
+	// BGM用
+	uint32_t m_bgmHandle = 0;
+	uint32_t m_playHandle = 0;
 
 public:
 	GameScene(int boardWidth = 18, int boardHeight = 10);

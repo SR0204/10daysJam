@@ -154,6 +154,7 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\GameClear.cpp" />
     <ClCompile Include="Game\Board.cpp" />
     <ClCompile Include="Game\CircuitSolver.cpp" />
     <ClCompile Include="Game\CountDownTimer.cpp" />
@@ -287,6 +288,7 @@
     <None Include="Resources\shaders\Sprite.hlsli" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Game\GameClear.h" />
     <ClInclude Include="Game\Board.h" />
     <ClInclude Include="Game\CircuitSolver.h" />
     <ClInclude Include="Game\CountDownTimer.h" />

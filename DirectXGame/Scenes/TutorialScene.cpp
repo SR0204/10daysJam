@@ -1,6 +1,7 @@
 #include "../Scenes/TutorialScene.h"
 #include "../App/SceneManager.h"
 #include "../Scenes/StageSelectScene.h"
+#include "audio/Audio.h"
 #include "base/TextureManager.h"
 #include "input/Input.h"
 
@@ -8,7 +9,15 @@ using namespace KamataEngine;
 
 TutorialScene::TutorialScene() {}
 
-TutorialScene::~TutorialScene() { delete m_guideSprite; }
+TutorialScene::~TutorialScene() {
+
+	delete m_guideSprite;
+
+	// シーン切り替え時にBGMを停止
+	if (m_playHandle != 0) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+	}
+}
 
 void TutorialScene::Initialize() {
 	// 説明画像の読み込みとスプライト生成
@@ -21,6 +30,9 @@ void TutorialScene::Update(float deltaTime) {
 
 	// SPACEキーが押されたらステージセレクトへ移動
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
+		Audio::GetInstance()->StopWave(m_playHandle);
+		Audio::GetInstance()->StopWave(m_bgmHandle);
 		m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
 	}
 }

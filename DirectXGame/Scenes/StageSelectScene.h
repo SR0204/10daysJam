@@ -34,6 +34,10 @@ private:
 	KamataEngine::Sprite* m_spriteNum1 = nullptr;
 	KamataEngine::Sprite* m_spriteNum2 = nullptr;
 
+	// ★ BGM用の変数
+	uint32_t m_bgmHandle = 0;
+	uint32_t m_playHandle = 0;
+
 public:
 	StageSelectScene();
 	~StageSelectScene();

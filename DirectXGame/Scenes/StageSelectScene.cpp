@@ -1,6 +1,7 @@
 #include "../Scenes/StageSelectScene.h"
 #include "../App/SceneManager.h"
 #include "../Scenes/GameScene.h"
+#include "audio/Audio.h"
 #include "base/DirectXCommon.h"
 #include "base/TextureManager.h"
 #include "input/Input.h"
@@ -17,6 +18,11 @@ StageSelectScene::~StageSelectScene() {
 	// ★ スプライトの解放
 	delete m_spriteNum1;
 	delete m_spriteNum2;
+
+	// シーン切り替え時にBGMを停止
+	if (m_playHandle != 0) {
+		Audio::GetInstance()->StopWave(m_playHandle);
+	}
 }
 
 void StageSelectScene::Initialize() {
@@ -197,6 +203,10 @@ void StageSelectScene::Initialize() {
 		m_spriteNum1->SetSize({spriteSize, spriteSize});
 		m_spriteNum2->SetSize({spriteSize, spriteSize});
 	}
+
+	// ★ BGMの読み込みとループ再生（音源ファイルのパスを指定してください）
+	m_bgmHandle = Audio::GetInstance()->LoadWave("BGM/StageSelectSceneBGM.wav");
+	m_playHandle = Audio::GetInstance()->PlayWave(m_bgmHandle, true, 0.5f);
 }
 
 void StageSelectScene::Update(float /*deltaTime*/) {
@@ -204,10 +214,16 @@ void StageSelectScene::Update(float /*deltaTime*/) {
 
 	// [1] キー：EASY（10x6 の小さめマップ）
 	if (input->PushKey(DIK_1)) {
+		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
+		Audio::GetInstance()->StopWave(m_playHandle);
+		Audio::GetInstance()->StopWave(m_bgmHandle);
 		m_sceneManager->ChangeScene(std::make_unique<GameScene>(10, 6));
 	}
 	// [2] キー：NORMAL（18x10 の画面ピッタリ全画面マップ）
 	else if (input->PushKey(DIK_2)) {
+		// ★ ステージセレクトへ遷移するタイミングでBGMを停止
+		Audio::GetInstance()->StopWave(m_playHandle);
+		Audio::GetInstance()->StopWave(m_bgmHandle);
 		m_sceneManager->ChangeScene(std::make_unique<GameScene>(18, 10));
 	}
 }

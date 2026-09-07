@@ -3,6 +3,7 @@
 #include "../Game/CircuitSolver.h"
 #include "../Scenes/StageSelectScene.h"
 #include "../Scenes/TitleScene.h"
+#include "audio/Audio.h"
 #include "base/WinApp.h"
 #include "input/Input.h"
 #include <algorithm>
@@ -15,11 +16,19 @@ GameScene::GameScene(int boardWidth, int boardHeight)
     : m_board(boardWidth, boardHeight), m_stageWidth(boardWidth), m_stageHeight(boardHeight), m_startX(0), m_startY(0), m_goalX(boardWidth - 1), m_goalY(boardHeight - 1) {}
 
 GameScene::~GameScene() {
-	delete m_clearSprite;
 	delete m_bgSprite;
+
+	// シーン切り替え時にBGMを停止
+	auto audio = Audio::GetInstance();
+	if (audio && m_bgmHandle != 0) {
+		audio->StopWave(m_bgmHandle);
+	}
 }
 
 void GameScene::Initialize() {
+	// ★ BGMの読み込みとループ再生
+	m_bgmHandle = Audio::GetInstance()->LoadWave("BGM/PlayBGM.wav");
+	m_playHandle = Audio::GetInstance()->PlayWave(m_bgmHandle, true, 0.5f);
 
 	// ★ 背景スプライトの生成
 	m_bgTexture = TextureManager::Load("BuckStage/BuckStage.png");
@@ -27,14 +36,14 @@ void GameScene::Initialize() {
 	if (m_bgSprite) {
 		float winWidth = static_cast<float>(WinApp::kWindowWidth);
 		float winHeight = static_cast<float>(WinApp::kWindowHeight);
-		m_bgSprite->SetSize({winWidth, winHeight}); // 画面いっぱいに広げる
+		m_bgSprite->SetSize({winWidth, winHeight});
 	}
 
 	// 1. スタートとゴールの初期化
 	m_start.Initialize(m_startX, m_startY);
 	m_goal.Initialize(m_goalX, m_goalY);
 
-	// 2. ステージ生成（スタートマスが RIGHT | DOWN に設定される）
+	// 2. ステージ生成
 	GenerateStage();
 
 	// 3. ゴールの向き決定と位置計算
@@ -49,7 +58,7 @@ void GameScene::Initialize() {
 	// 4. チャージ率配列の初期化
 	m_chargeProgress.assign(m_board.GetHeight(), std::vector<float>(m_board.GetWidth(), 0.0f));
 
-	// 5. 盤面のシャッフル（スタート・ゴール以外をランダム回転）
+	// 5. 盤面のシャッフル
 	std::random_device rd;
 	std::mt19937 g(rd());
 	for (int y = 0; y < m_board.GetHeight(); ++y) {
@@ -69,19 +78,13 @@ void GameScene::Initialize() {
 	// 6. 描画クラスの初期化
 	m_renderer.Initialize(m_board.GetWidth(), m_board.GetHeight());
 
-	// ★ 7. シャッフルが終わった【後】に通電状態を更新する！
+	// 7. 通電状態を更新
 	RefreshCircuit();
 
-	// ★ 8. 回路計算後に確実にスタート位置の通電・チャージを 1.0f に保証する
 	m_board.GetTile(m_startX, m_startY).isPowered = true;
 	m_chargeProgress[m_startY][m_startX] = 1.0f;
 
-	// ★ 9. スタートマスの確定状態を描画バッファへ反映
 	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
-
-	// ★ クリア画像のスプライト作成
-	m_clearTexture = TextureManager::Load("Clear/Clear.png"); // ※画像のパスに合わせて調整してください
-	m_clearSprite = Sprite::Create(m_clearTexture, {0.0f, 0.0f});
 
 	// 3分（180秒）でタイマーを初期化
 	m_timer = std::make_unique<CountDownTimer>();
@@ -90,6 +93,10 @@ void GameScene::Initialize() {
 	// ゲームオーバー初期化+作成
 	m_gameOver = std::make_unique<GameOver>();
 	m_gameOver->Initialize();
+
+	// ★ ゲームクリア初期化+作成
+	m_gameClear = std::make_unique<GameClear>();
+	m_gameClear->Initialize();
 }
 
 void GameScene::Update(float deltaTime) {
@@ -112,23 +119,24 @@ void GameScene::Update(float deltaTime) {
 	// 3. 描画バッファの更新
 	m_renderer.UpdateBuffers(m_board, m_chargeProgress, m_goalX, m_goalY);
 
-	// 4. クリア時のリザルト処理（Clear.png 表示中のキー操作）
+	// ★ 4. クリア時のリザルト処理（GameClearクラスに任せる）
 	if (m_goal.IsReached()) {
-		Input* input = Input::GetInstance();
+		// クリアした最初の1フレームだけPlayBGMを止めてクリアBGMを再生
+		if (!m_isClearBgmPlayed) {
+			Audio::GetInstance()->StopWave(m_bgmHandle);
+			m_gameClear->PlayBGM();
+			m_isClearBgmPlayed = true;
+		}
 
-		// Rキー：リスタート（同じサイズでステージを再生成）
-		if (input->TriggerKey(DIK_R)) {
+		GameClearResult result = m_gameClear->Update();
+		if (result == GameClearResult::Retry) {
 			m_sceneManager->ChangeScene(std::make_unique<GameScene>(m_board.GetWidth(), m_board.GetHeight()));
-			return;
-		}
-		// Tキー：タイトル画面へ遷移
-		if (input->TriggerKey(DIK_T)) {
+		} else if (result == GameClearResult::StageSelect) {
+			m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
+		} else if (result == GameClearResult::Title) {
 			m_sceneManager->ChangeScene(std::make_unique<TitleScene>());
-			return;
 		}
-
-		// クリア時は以降の操作（回転）を受け付けない
-		return;
+		return; // クリア時は以降の回転やタイマー更新をストップ
 	}
 
 	// 5. 通常時の入力処理（クリックでパイプ回転）
@@ -144,27 +152,28 @@ void GameScene::Update(float deltaTime) {
 		OnMouseDown(mousePos.x, mousePos.y, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
 	}
 
-	// ★ ゲームオーバー中の処理
+	// 6. ゲームオーバー中の処理
 	if (m_isGameOver) {
 		GameOverResult result = m_gameOver->Update();
 
 		if (result == GameOverResult::Retry) {
-			// 同じステージサイズでリスタート
 			m_sceneManager->ChangeScene(std::make_unique<GameScene>(m_stageWidth, m_stageHeight));
 		} else if (result == GameOverResult::StageSelect) {
-			// ステージセレクトへ遷移
 			m_sceneManager->ChangeScene(std::make_unique<StageSelectScene>());
 		} else if (result == GameOverResult::Title) {
-			// ★ タイトル画面へ遷移
 			m_sceneManager->ChangeScene(std::make_unique<TitleScene>());
 		}
-		return; // パズル操作やタイマーをストップ
+		return;
 	}
 
 	// タイマー更新
 	m_timer->Update(deltaTime);
-	if (m_timer->IsFinished()) {
-		m_isGameOver = true; // タイムアップでゲームオーバーへ
+	if (m_timer->IsFinished() && !m_isGameOver) {
+		m_isGameOver = true; // タイムアップ
+
+		// GameScene の BGM を停止して GameOver の BGM を再生
+		Audio::GetInstance()->StopWave(m_bgmHandle);
+		m_gameOver->PlayBGM();
 	}
 }
 
@@ -215,25 +224,24 @@ void GameScene::RefreshCircuit() {
 }
 
 void GameScene::Render(ID3D12GraphicsCommandList* commandList) {
-
-	// ★ 1. 最背景の画像描画
+	// 1. 背景の画像描画
 	if (m_bgSprite) {
 		Sprite::PreDraw(commandList);
 		m_bgSprite->Draw();
 		Sprite::PostDraw();
 	}
 
-	// 1. パイプ・スタート・ゴールの描画（3D/背景）
+	// 2. パイプ・スタート・ゴールの描画（3D）
 	m_renderer.Render(commandList);
 	m_start.Render(commandList);
 	m_goal.Render(commandList);
 
-	// 2. UI・スプライト描画（まとめて1回の PreDraw/PostDraw で描画）
+	// 3. UI・スプライト描画
 	Sprite::PreDraw(commandList);
 
-	// クリア画像
-	if (m_goal.IsReached() && m_clearSprite) {
-		m_clearSprite->Draw();
+	// ★ クリア演出描画（GameClearクラスに統一）
+	if (m_goal.IsReached() && m_gameClear) {
+		m_gameClear->Draw();
 	}
 
 	// タイマー

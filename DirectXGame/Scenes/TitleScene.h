@@ -18,4 +18,8 @@ private:
 
 	uint32_t m_textureHandleOn = 0;
 	KamataEngine::Sprite* m_titleSprite = nullptr;
+
+	// ★ BGM用の変数
+	uint32_t m_bgmHandle = 0;
+	uint32_t m_playHandle = 0;
 };
